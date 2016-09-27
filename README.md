@@ -14,9 +14,11 @@ An ANSI/INCITS Next Generation Access Control (NGAC) standard reference Implemen
 
 - New Records Manager Applications (Schema Builder and Table Editor)
 
-#### Performance:
+- Simpler Installation
+
+#### Performance Enhancements:
+
 - Faster Algorithms for evaluating decisions and reviewing policy
 
 - In memory decision and policy review
 
-- Simpler Installation
