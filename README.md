@@ -10,7 +10,7 @@ An ANSI/INCITS Next Generation Access Control (NGAC) standard reference Implemen
 
 - Object Oriented Software Architecture
 
-- Replace Active Directory with MySQL
+- Replaced Active Directory with MySQL
 
 - New Records Manager Applications (Schema Builder and Table Editor)
 
