@@ -6,7 +6,7 @@ Major Enhancements:
   
   •	Object Oriented Software Architecture
   
-  •	Replace Active Directory with MySQL
+  •	Replaced Active Directory with MySQL
   
   •	New Records Manager Applications (Schema Builder and Table Editor)
 Performance:
