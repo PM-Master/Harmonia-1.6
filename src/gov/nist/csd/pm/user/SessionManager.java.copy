@@ -1,0 +1,856 @@
+package gov.nist.csd.pm.user;
+
+import gov.nist.csd.pm.common.net.*;
+/*
+ * SessionManager.java
+ *
+ * Created by Serban I. Gavrila
+ * for KT Consulting Inc.
+ */
+
+import gov.nist.csd.pm.common.graphics.GraphicsUtil;
+import gov.nist.csd.pm.common.net.ItemType;
+import gov.nist.csd.pm.common.net.Packet;
+import java.util.*;
+import java.io.*;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.event.*;
+import java.security.*;
+import java.net.*;
+
+/**
+ * @author gavrila@nist.gov
+ * @version $Revision: 1.1 $, $Date: 2008/07/16 17:03:00 $
+ * @since 1.5
+ */
+public class SessionManager extends JFrame implements ActionListener {
+  
+  private static final int PM_DEFAULT_SIMULATOR_PORT = 8081;
+  private static final int PM_DEFAULT_EXPORTER_PORT = 8082;
+  
+  public static final String PM_FAILURE     = "err ";
+  public static final String PM_SUCCESS     = "ok  ";
+  
+  public static final String PM_CMD         = "cmd ";
+  public static final String PM_EOC         = "eoc ";
+  
+  public static final String PM_ARG         = "arg ";
+  public static final String PM_SEP         = "sep ";
+  
+  public static final String PM_DATA        = "data";
+  public static final String PM_EOD         = "eod ";
+  
+  public static final String PM_BYE         = "bye ";
+  
+  public static final String PM_NODE_USER    = "u";
+  public static final String PM_NODE_USERA   = "U";
+  public static final String PM_NODE_UATTR   = "a";
+  public static final String PM_NODE_UATTRA  = "A";
+  public static final String PM_NODE_POL     = "p";
+  public static final String PM_NODE_POLA    = "P";
+  public static final String PM_NODE_OATTR   = "b";
+  public static final String PM_NODE_OATTRA  = "B";
+  public static final String PM_NODE_ASSOC   = "o";
+  public static final String PM_NODE_ASSOCA  = "O";
+  public static final String PM_NODE_OPSET   = "s";
+  public static final String PM_NODE_OPSETA  = "S";
+  public static final String PM_NODE_CONN    = "c";
+  public static final String PM_NODE_CONNA   = "C";
+  public static final String PM_OBJ          = "ob";
+  
+  public static final String PM_FIELD_DELIM = ":";
+  public static final String PM_TERMINATOR  = ".";
+  public static final String PM_ALT_FIELD_DELIM = "|";
+  public static final String PM_ALT_DELIM_PATTERN = "\\|";
+
+  private HashMap sessionMap = null;
+
+  // The SSL client used to talk to the K-Simulator.
+  private SSLSocketClient simClient;
+  private int simulatorPort;
+  
+  private String sAtoolPath;
+  private String sEditorPath;
+  private String sWorkflowPath;
+  private String sGrantorPath;
+  private String sExporterPath;
+  private String sLauncherPath;// The Writer launcher's path.
+  private String sMedrecPath;
+  private String sAcctrecPath;
+  
+  private String sLocalHost;
+
+  // The exporter's session.
+  private Session exporterSession;
+  private String sExporterSessName;
+  private String sExporterSessId;
+  private String sExporterName = "exporter";
+  private String sExporterId;
+
+  private int exporterPort;
+
+  private Process exporterProcess;
+  
+  private boolean bUserConfirm = true;
+
+  private OsConfigEditor configEditor;
+  
+  private JMenu windowMenu;
+  boolean debugFlag;
+  
+  public SessionManager(String title, int simulatorPort, int exporterPort,
+  boolean debugFlag) {
+    super(title);
+    
+    try {
+      UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    setIconImage(GraphicsUtil.getImage("/images/nist.gif", getClass()));
+
+    addWindowListener(new WindowAdapter() {
+      public void windowClosing(WindowEvent we) {
+        doTerminate(0);
+      }
+    });
+    
+    this.debugFlag = debugFlag;
+    this.simulatorPort = simulatorPort;
+    this.exporterPort = exporterPort;
+
+    // Get the local host name.
+    sLocalHost = getLocalHost();
+    if (sLocalHost == null) {
+      JOptionPane.showMessageDialog(this, "Failed to obtain the local host name!");
+      System.exit(-1);
+    }
+
+    // Set the client socket for communication with the Kernel simulator.
+    try {
+      simClient = new SSLSocketClient("localhost", simulatorPort, debugFlag, "SMgr");
+    } catch (Exception e) {
+      JOptionPane.showMessageDialog(null, "Unable to create the client socket for communication with the K-simulator!");
+      e.printStackTrace();
+      System.exit(-2);
+    }
+
+    // Check the connection to the K-simulator.
+    if (!checkKernelConnection()) {
+      JOptionPane.showMessageDialog(null, "Unable to connect to the Kernel simulator! Exiting...");
+      System.exit(-3);
+    }
+
+    // Build the GUI.
+    JPanel contentPane = new JPanel();
+    contentPane.setLayout(new BorderLayout());
+    contentPane.setBorder(BorderFactory.createEmptyBorder(20,20,20,20));
+    setContentPane(contentPane);
+    
+    // The Menu bar.
+    JMenuBar menuBar = new JMenuBar();
+    setJMenuBar(menuBar);
+    
+    // The File menu.
+    JMenu menu = new JMenu("Manager");
+    menuBar.add(menu);
+    
+    JMenuItem menuItem = new JMenuItem("Login");
+    menuItem.addActionListener(this);
+    menu.add(menuItem);
+    
+    menu.addSeparator();
+
+    menuItem = new JMenuItem("Configure...");
+    menuItem.addActionListener(this);
+    menu.add(menuItem);
+
+    menu.addSeparator();
+
+    menuItem = new JMenuItem("Exit", KeyEvent.VK_Q);
+	menuItem.setAccelerator(KeyStroke.getKeyStroke(
+            KeyEvent.VK_Q, ActionEvent.CTRL_MASK));
+    menuItem.addActionListener(this);
+    menu.add(menuItem);
+    
+    // The View menu.
+    menu = new JMenu("View");
+    menuBar.add(menu);
+    
+    // The Window menu.
+    windowMenu = new JMenu("Window");
+    menuBar.add(windowMenu);
+    
+    //contentPane.setPreferredSize(getToolkit().getScreenSize());
+    contentPane.setPreferredSize(new Dimension(400, 300));
+
+    sessionMap = new HashMap();
+    configEditor = new OsConfigEditor(this);
+    configEditor.pack();
+    Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+    Dimension size = configEditor.getSize();
+    configEditor.setLocation((int)((screen.getWidth()-size.getWidth())/2),
+                     (int)((screen.getHeight()-size.getHeight())/2));
+  }
+  
+  public void actionPerformed(ActionEvent e) {
+    JMenuItem source = (JMenuItem)(e.getSource());
+    String sCommand = source.getText();
+    if (sCommand.equals("Login")) {
+      doLogin();
+    } else if (sCommand.equals("Exit")) {
+      doTerminate(0);
+    } else if (sCommand.equals("Configure...")) {
+      doConfigure();
+    } else {
+      System.out.println(sCommand);
+      doBringToFront(sCommand);
+      System.out.println("You asked for window " + sCommand);
+      // Find the session object that corresponds to the action command.
+      Iterator iter = sessionMap.values().iterator();
+      while (iter.hasNext()) {
+        Session sess = (Session)iter.next();
+        if (sess.getName().equals(sCommand)) sess.toFront();
+      }
+    }
+  }
+
+  // Check the connection to the K-simulator.
+  private boolean checkKernelConnection() {
+    try {
+      Packet cmd = makeCmd("connect", null);
+      Packet res = simClient.sendReceive(cmd, null);
+      if (res.hasError()) return false;
+      return true;
+    } catch (Exception e) {
+      e.printStackTrace();
+      return false;
+    }
+  }
+
+  // Just delete the session from the server.
+  private boolean deleteSession(String sId) {
+    Packet res = null;
+    try {
+      Packet cmd = makeCmd("deleteSession", null, sId);
+      res = simClient.sendReceive(cmd, null);
+      if (res.hasError()) {
+        JOptionPane.showMessageDialog(this, "Error in deleteSession: " + res.getErrorMessage());
+        return false;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      JOptionPane.showMessageDialog(null, "Exception in deleteSession: " + e.getMessage());
+      return false;
+    }
+    return true;
+  }
+  
+  // Terminate the session manager.
+  private void doTerminate(int n) {
+    // Send each session prepareToClose().
+    // Remove the session object.
+    // Delete the session from the server.
+    Iterator iter = sessionMap.values().iterator();
+    while (iter.hasNext()) {
+      Session sess = (Session)iter.next();
+      sess.prepareToClose();
+      if (sess == exporterSession) {
+        System.out.println("Found the exporter session. trying to destroy the exporter process...");
+        sess.destroyExporter();
+      }
+      deleteSession(sess.getId());
+      iter.remove();
+      sess = null;
+    }
+    
+    try {
+      simClient.close();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    System.exit(n);
+  }
+  
+  // Bring to front the window for the session with the name sName.
+  private void doBringToFront(String sName) {
+    // Find the session object that corresponds to the action command.
+    Iterator iter = sessionMap.values().iterator();
+    while (iter.hasNext()) {
+      Session sess = (Session)iter.next();
+      if (sess.getName().equals(sName)) sess.toFront();
+    }
+  }
+
+  // Check whether we have any application installed.
+  private boolean checkInstalledApps() {
+    // If the paths are set, return.
+    if (sAtoolPath != null && sAtoolPath.length() > 0 &&
+        sEditorPath != null && sEditorPath.length() > 0 &&
+        sLauncherPath != null && sLauncherPath.length() > 0 &&
+        sMedrecPath != null && sMedrecPath.length() > 0 &&
+        sAcctrecPath != null && sAcctrecPath.length() > 0 &&
+        sWorkflowPath != null && sWorkflowPath.length() > 0 &&
+        sGrantorPath != null && sGrantorPath.length() > 0 &&
+        sExporterPath != null && sExporterPath.length() > 0) return true;
+    
+    // If not, ask the kernel to fetch the paths from the engine.
+    Packet res = null;
+    try {
+      Packet cmd = makeCmd("getHostAppPaths", null, sLocalHost);
+      res = simClient.sendReceive(cmd, null);
+      if (res.hasError()) {
+        JOptionPane.showMessageDialog(this, "Error in getHostAppPaths: " + res.getErrorMessage());
+        return false;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      JOptionPane.showMessageDialog(null, "Exception in getHostAppPaths: " + e.getMessage());
+      return false;
+    }      
+    
+    // If the applications paths are stored in the engine, then the answer contains:
+    // item 0: absolute path of the Admin Tool jar or empty string;
+    // item 1: absolute path of the RTF Editor jar or empty string.
+    // item 2: absolute path of the Workflow jar or empty string.
+    // item 3: absolute path of the Email jar or empty string.
+    // item 4: absolute path of the Exporter jar or empty string.
+    // item 5: absolute path of the Writer Launcher jar or empty string.
+    // item 6: absolute path of the Medical Record Editor jar or empty string.
+    if (res.size() >= 8) {
+      sAtoolPath = res.getStringValue(0);
+      sEditorPath = res.getStringValue(1);
+      sWorkflowPath = res.getStringValue(2);
+      sGrantorPath = res.getStringValue(3);
+      sExporterPath = res.getStringValue(4);
+      sLauncherPath = res.getStringValue(5);
+      sMedrecPath = res.getStringValue(6);
+      sAcctrecPath = res.getStringValue(7);
+      if (sAtoolPath.length() > 0 &&
+          sEditorPath.length() > 0 &&
+          sLauncherPath.length() > 0 &&
+          sMedrecPath.length() > 0 &&
+          sAcctrecPath.length() > 0 &&
+          sWorkflowPath.length() > 0 &&
+          sGrantorPath.length() > 0 &&
+          sExporterPath.length() > 0) return true;
+    }
+    doConfigure();
+    return true;
+  }
+  
+  private void doConfigure() {
+    configEditor.setAppPaths(sAtoolPath, sEditorPath, sWorkflowPath, sGrantorPath,
+      sExporterPath, sLauncherPath, sMedrecPath, sAcctrecPath);
+    configEditor.setUserConfirm(bUserConfirm);
+    configEditor.setVisible(true);
+  }
+  
+  public void setUserConfirm(boolean confirm) {
+    this.bUserConfirm = confirm;
+  }
+  
+  public void setAppPaths(String sAtoolPath, String sEditorPath,
+  String sWorkflowPath, String sGrantorPath, String sExporterPath, String sLauncherPath,
+  String sMedrecPath, String sAcctrecPath) {
+    this.sAtoolPath = sAtoolPath;
+    this.sEditorPath = sEditorPath;
+    this.sWorkflowPath = sWorkflowPath;
+    this.sGrantorPath = sGrantorPath;
+    this.sExporterPath = sExporterPath;
+    this.sLauncherPath = sLauncherPath;
+    this.sMedrecPath = sMedrecPath;
+    this.sAcctrecPath = sAcctrecPath;
+    
+    // Store the paths in the engine for later.
+    String sHost = getLocalHost();
+    if (sHost == null) {
+      JOptionPane.showMessageDialog(this, "Failed to obtain the local host name!");
+      return;
+    }
+    Packet res = null;
+    try {
+      Packet cmd = makeCmd("setHostAppPaths", null, sHost, sAtoolPath, sEditorPath,
+        sWorkflowPath, sGrantorPath, sExporterPath, sLauncherPath, sMedrecPath, sAcctrecPath);
+      res = simClient.sendReceive(cmd, null);
+      if (res.hasError()) {
+        JOptionPane.showMessageDialog(this, "Error in setHostAppPaths: " + res.getErrorMessage());
+        return;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      JOptionPane.showMessageDialog(null, "Exception in setHostAppPaths: " + e.getMessage());
+      return;
+    }
+  }
+  
+  public String getAtoolPath() {
+    return sAtoolPath;
+  }
+  
+  public String getEditorPath() {
+    return this.sEditorPath;
+  }
+
+  public String getLauncherPath() {
+    return this.sLauncherPath;
+  }
+
+  public String getMREditorPath() {
+	    return this.sMedrecPath;
+	  }
+
+  public String getAcctEditorPath() {
+	    return this.sAcctrecPath;
+	  }
+
+  public String getWorkflowPath() {
+    return this.sWorkflowPath;
+  }
+  
+  public String getGrantorPath() {
+    return this.sGrantorPath;
+  }
+  
+  public String getExporterPath() {
+    return this.sExporterPath;
+  }
+  
+  public boolean getUserConfirm() {
+    return this.bUserConfirm;
+  }
+
+  // If an user named "exporter" exists, create a session for it.
+  private boolean openExporterSession() {
+    if (!userExists(sExporterName)) return true;
+
+   Packet res = null;
+    try {
+      Packet cmd = makeCmd("createSession", null, "My session", sLocalHost,
+        sExporterName, sExporterName);
+      res = simClient.sendReceive(cmd, null);
+      if (res.hasError()) {
+        JOptionPane.showMessageDialog(this, "Error in createSession for user " +
+          sExporterName + ": " + res.getErrorMessage());
+        return false;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      JOptionPane.showMessageDialog(this, "Exception in createSession for user " +
+        sExporterName + ": " + e.getMessage());
+      return false;
+    }
+
+    // The engine answer contains:
+    // item 0: <sess name>
+    // item 1: <sess id>
+    // item 2: <user id>
+    sExporterSessName = res.getStringValue(0);
+    sExporterSessId = res.getStringValue(1);
+    sExporterId = res.getStringValue(2);
+
+    // Build the session object w/o GUI (last argument true means
+    // no GUI)
+    exporterSession = new Session(this, simClient, sExporterSessName,
+      sExporterSessId, sExporterName, sExporterId, sLocalHost, true);
+    sessionMap.put(sExporterSessId, exporterSession);
+
+    // Launch the Exporter application within this session.
+    return exporterSession.doLaunchExporter();
+  }
+
+  public Session getExporterSession() {
+    return exporterSession;
+  }
+  
+  private boolean userExists(String sUserName) {
+    Packet res = null;
+    try {
+      Packet cmd = makeCmd("getEntityId", null, sUserName, PM_NODE_USER);
+      res = simClient.sendReceive(cmd, null);
+      if (res.hasError()) {
+        JOptionPane.showMessageDialog(this, "Error in getEntityId for user " +
+          sUserName + ": " + res.getErrorMessage());
+        return false;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      JOptionPane.showMessageDialog(null, "Exception in getEntityId for user " +
+        sUserName + ": " + e.getMessage());
+      return false;
+    }
+    return true;
+  }
+  
+  public void doLoginSerban() {
+    char[] pass = {'s','e','r','b','a','n'};
+    boolean b = openSession("serban", pass);
+  }
+  
+  public void doLogin() {
+    JTextField userField = new JTextField();
+    JPasswordField passField = new JPasswordField();
+    String message = "Please enter your user name and password.";
+    for (int j = 0; j < 3; j++) {
+      int res = JOptionPane.showOptionDialog(this,
+              new Object[] {message, userField, passField},
+              "Login", JOptionPane.OK_CANCEL_OPTION,
+              JOptionPane.QUESTION_MESSAGE, null, null, null);
+      if (res == JOptionPane.CANCEL_OPTION || res == JOptionPane.CLOSED_OPTION) return;
+      
+      // Get user name and password.
+      String sUser = userField.getText();
+      char[] cPass = passField.getPassword();
+  
+      // Try to open the session.
+      boolean b = openSession(sUser, cPass);
+
+      // Zero the password.
+      for (int i = 0; i < cPass.length; i++) cPass[i] = 0;
+      if (b) return;
+    }
+  }
+
+  // The password is sent in clear to the server.
+  private boolean openSession(String sUserName, char[] cPass) {
+    if (sUserName.length() == 0) {
+      JOptionPane.showMessageDialog(this, "Incorrect user name or password");
+      return false;
+    }
+    // Find the local host name.
+    String sHostName = getLocalHost();
+    if (sHostName == null) {
+      JOptionPane.showMessageDialog(this, "Failed to obatain local host name!");
+      return false;
+    }
+
+    // Send the session name, host name, user name, and password to the server.
+    Packet res = null;
+    try {
+      Packet cmd = makeCmd("createSession", null, "My session", sHostName,
+        sUserName, new String(cPass));
+      res = simClient.sendReceive(cmd, null);
+      if (res.hasError()) {
+        JOptionPane.showMessageDialog(this, "Error in createSession: " + res.getErrorMessage());
+        return false;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      JOptionPane.showMessageDialog(null, "Exception in createSession: " + e.getMessage());
+      return false;
+    }
+
+    // The engine answer contains:
+    // item 0: <sess name>
+    // item 1: <sess id>
+    // item 2: <user id>
+    // Build the new session object.
+    String sSessName = res.getStringValue(0);
+    String sSessId = res.getStringValue(1);
+    String sUserId = res.getStringValue(2);
+
+    Session session = new Session(this, simClient, sSessName, sSessId,
+                                  sUserName, sUserId, sHostName);
+    sessionMap.put(sSessId, session);
+    session.pack();
+    GraphicsUtil.centerDialog(session);
+    session.setVisible(true);
+    
+    JMenuItem menuItem = new JMenuItem(sSessName);
+    menuItem.addActionListener(this);
+    windowMenu.add(menuItem);
+    
+    return true;
+  }
+
+  public Session getSession(String sId) {
+    return (Session)sessionMap.get(sId);
+  }
+  
+  public void registerSession(Session session) {
+    sessionMap.put(session.getId(), session);
+    JMenuItem menuItem = new JMenuItem(session.getName());
+    menuItem.addActionListener(this);
+    windowMenu.add(menuItem);
+  }
+  
+  // Ask the engine to delete the session from its database.
+  // Remove the session from the HashMap.
+  // Remove the corresponding item from the Window menu.
+  // Zero the ref to the session object.
+  // Note that the session is registered (inserted in sessionMap)
+  // by the manager only after construction is successful.
+  // CloseSession may be called from session's doClose() during
+  // construction, so the session might not be registered yet,
+  // so we need to test if the sesion is registered.
+  public void closeSession(String sId) {
+    if (!deleteSession(sId)) return;
+    if (!sessionMap.containsKey(sId)) return;
+    Session session = (Session)sessionMap.remove(sId);
+    String sName = session.getName();
+    int n = windowMenu.getItemCount();
+    for (int i = 0; i < n; i++) {
+      if (windowMenu.getItem(i).getText().equals(sName)) {
+        windowMenu.remove(i);
+        break;
+      }
+    }
+    session = null;
+  }
+  
+  public String getEngineHost() {
+    return "musial";
+  }
+  
+  public int getEnginePort() {
+    return 8080;
+  }
+  
+  public int getExporterPort() {
+    return exporterPort;
+  }
+  
+  private byte[] getBytes(String filename) {
+    try {
+      File f = new File(filename);
+      int bytesLeft = (int)f.length();
+      byte[] buffer = new byte[bytesLeft];
+      FileInputStream fis = new FileInputStream(f);
+      int n;
+      int index = 0;
+      while ((bytesLeft  > 0) && (n = fis.read(buffer, index, bytesLeft)) != -1) {
+        index += n;
+        bytesLeft -= n;
+      }
+      fis.close();
+      return buffer;
+    } catch (Exception e) {
+      if (debugFlag) {
+        e.printStackTrace();
+      }
+      return null;
+    }
+  }
+  
+  void printPass(byte[] salt, byte[] pass) {
+    System.out.println("Salt has " + salt.length + " bytes");
+    for (int i = 0; i < salt.length; i++) System.out.println(salt[i]);
+    
+    System.out.println("Pass has " + pass.length + " bytes");
+    for (int i = 0; i < pass.length; i++) System.out.println(pass[i]);
+  }    
+  
+  // Argument n is a byte with a small positive or zero value - actually
+  // between 0 and 15 - representing the decimal value of a hex digit.
+  // The method returns a byte that corresponds to the character representing
+  // the hex digit. For example, if n = 7, the method returns 0x37, i.e. '7'.
+  // If n = 12, the method returns 'C'.
+  byte byte2HexDigit(byte n) {
+    if (n < 10) return (byte)('0' +  n);
+    else return (byte)('A' + n - 10);
+  }
+
+  String byteArray2HexString(byte[] inp) {
+    byte[] buf = new byte[2 * inp.length];
+    int inpix, outix;
+    int n;
+    byte q, r;
+    
+    for (inpix = outix = 0; inpix < inp.length; inpix++) {
+      n = inp[inpix] & 0x000000FF;
+      q = (byte)(n / 16); r = (byte)(n % 16);
+      buf[outix++] = byte2HexDigit(q);
+      buf[outix++] = byte2HexDigit(r);
+    }
+    return new String(buf);
+  }
+
+
+  byte hexDigit2Byte(char c) {
+    if (c >= '0' && c <= '9') return (byte)(c - '0');
+    else if (c >= 'a' && c <= 'f') return (byte)(c - 'a' + 10);
+    else if (c >= 'A' && c <= 'F') return (byte)(c - 'A' + 10);
+    else return (byte)0;
+  }
+  
+  // 
+  byte[] hexString2ByteArray(String inp) {
+    int len;
+    int inpix, outix;
+
+    if (inp == null || inp.length() == 0 || inp.length() % 2 != 0) return null;
+    byte[] out = new byte[inp.length() / 2];
+    
+    for (inpix = 0, outix = 0; inpix < inp.length(); ) {
+      int msn = hexDigit2Byte(inp.charAt(inpix++));
+      int lsn = hexDigit2Byte(inp.charAt(inpix++));
+      
+      out[outix++] = (byte)((msn << 4) | lsn);
+    }
+    return out;
+  }
+
+  public static Packet makeCmd(String sCode, String sSessId, String... sArgs) throws Exception {
+    Packet cmd = new Packet();
+
+    cmd.addItem(ItemType.CMD_CODE, sCode);
+    if (sSessId == null) cmd.addItem(ItemType.CMD_ARG, "");
+    else cmd.addItem(ItemType.CMD_ARG, sSessId);
+    
+    if (sArgs == null) return cmd;
+    for (String arg: sArgs) {
+      cmd.addItem(ItemType.CMD_ARG, arg);
+    }
+    return cmd;
+  }
+
+  // Provide the command header containing the command code and session id.
+  // The caller must first add a PM_SEP or PM_EOC.
+  public static ArrayList makeCmdHeader(String sCmdCode, String sSessId) {
+    ArrayList cmd = new ArrayList();
+    cmd.add(PM_CMD + sCmdCode);
+    cmd.add(PM_SEP);
+    if (sSessId != null) cmd.add(PM_ARG + sSessId);
+    return cmd;
+  }
+
+  public static boolean isFailure(ArrayList res) {
+    if (res == null || res.size() == 0) return false;
+    String line = (String)res.get(0);
+    if (line.startsWith(PM_FAILURE)) return true;
+    return false;
+  }
+  
+  public static String getMessage(ArrayList res) {
+    return ((String)res.get(0)).substring(4);
+  }
+
+  public static Object failure() {
+    ArrayList res = new ArrayList();
+    res.add(PM_FAILURE);
+    return res;
+  }
+
+  public static Object failure(String s) {
+    ArrayList res = new ArrayList();
+    res.add(PM_FAILURE + s);
+    return res;
+  }
+
+  public static Object success() {
+    ArrayList res = new ArrayList();
+    res.add(PM_SUCCESS);
+    return res;
+  }
+
+  public static Object success(String s) {
+    ArrayList res = new ArrayList();
+    res.add(PM_SUCCESS + s);
+    return res;
+  }
+  
+  public static Packet successPacket(String s) {
+    try {
+      Packet res = new Packet();
+      if (s == null || s.length() == 0) res.addItem(ItemType.RESPONSE_SUCCESS, "Success");
+      else res.addItem(ItemType.RESPONSE_SUCCESS, s);
+      return res;
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
+  
+  public static HashSet packetToSet(Packet p) {
+    HashSet set = new HashSet();
+    if (p == null) return set;
+    for (int i = 0; i < p.size(); i++) {
+      set.add(p.getStringValue(i));
+    }
+    return set;
+  }
+  
+  public static HashSet packetToSet(Packet p, int offset) {
+    HashSet set = new HashSet();
+    if (p == null) return set;
+    for (int i = offset; i < p.size(); i++) {
+      set.add(p.getStringValue(i));
+    }
+    return set;
+  }
+
+  public static String getLocalHost() {
+    String sHostName;
+    try {
+      InetAddress addr = InetAddress.getLocalHost();
+      sHostName = addr.getHostName();
+      int end = sHostName.indexOf('.');
+      if (end >= 0) sHostName = sHostName.substring(0, end);
+      return sHostName;
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
+  }  
+  
+  // Find and return where to insert a new string in an alphabetically ordered list.
+  public static int getIndex(DefaultListModel model, String target) {
+    int high = model.size(), low = -1, probe;
+    while (high - low > 1) {
+      probe = (high + low) / 2;
+      if (target.compareToIgnoreCase((String)model.get(probe)) < 0)
+        high = probe;
+      else
+        low = probe;
+    }
+    return (low + 1);
+  }
+
+  
+  
+  private static void createAndShowGUI(int simulatorPort, int exporterPort,
+  boolean debugFlag) {
+    SessionManager manager = new SessionManager("PMOS - Session Manager",
+      simulatorPort, exporterPort, debugFlag);
+    manager.pack();
+    GraphicsUtil.centerFrame(manager);
+    manager.setVisible(true);
+    if (!manager.checkInstalledApps()) {
+      JOptionPane.showMessageDialog(manager, "No path for the Exporter application found!");
+      manager.doTerminate(0);
+    }
+    if (manager.openExporterSession()) manager.doLogin();
+  }
+
+  private static int nSimPort = 0;
+  private static int nExpPort = 0;
+  private static boolean bDbgFlag = false;
+  
+  public static void main(String[] args) {
+    // Process possible arguments.
+    for (int i = 0; i < args.length; i++) { 
+      if (args[i].equals("-debug")) {
+        bDbgFlag = true;
+      } else if (args[i].equals("-simport")) {
+        nSimPort = Integer.valueOf(args[++i]).intValue();
+      } else if (args[i].equals("-export")) {
+        nExpPort = Integer.valueOf(args[++i]).intValue();
+      }
+    }
+   
+    if (nSimPort < 1024) nSimPort = PM_DEFAULT_SIMULATOR_PORT;
+    if (nExpPort < 1024) nExpPort = PM_DEFAULT_EXPORTER_PORT;
+
+    System.out.println("SessionManager started...");
+    System.out.println("... with KernelSimulator port " + nSimPort + "...");
+    System.out.println("... and Exporter port " + nExpPort + "...");
+
+    javax.swing.SwingUtilities.invokeLater(new Runnable() {
+      public void run() {
+        createAndShowGUI(nSimPort, nExpPort, bDbgFlag);
+      }
+    });
+  }
+}

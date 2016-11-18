@@ -1,0 +1,38 @@
+<!-- 
+	Special settings for Ivy dependencies.
+	
+	Some dependencies (e.g. jfontchooser) are located in isolated repositories.
+	This settings file specifies them so that they can be resolved automatically.
+	
+	Other dependencies (e.g. MigLayout) use naming conventions in Maven that don't 
+	map to Ivy by default.  This settings file allows this to be resolved as well.
+	Refer the use of <e:classifier=""> when specifying the MigLayout dependency in the 
+	ivy.xml file for an example of this. 
+	
+ -->
+
+<ivysettings>
+
+	<include url="${ivy.default.conf.dir}/ivysettings.xml" />
+	<settings defaultResolver="chained" />
+	<caches>
+    	<cache name="nocache"/>
+  	</caches>
+	<resolvers>
+		<chain name="chained">
+			<filesystem name="local-lib" cache="nocache">
+			    <ivy pattern="${basedir}/lib/[artifact]-[revision](-[classifier]).[ext]"/>
+				<artifact pattern="${basedir}/lib/[artifact]-[revision](-[classifier]).[ext]" />
+			</filesystem>
+			<ibiblio name="public" m2compatible="true" usepoms="true"
+				root="http://repo1.maven.org/maven2"
+				pattern="[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]" />
+			<ibiblio name="java.net2" root="http://download.java.net/maven/2/"
+				m2compatible="true" />
+			<ibiblio name="jfontchooser" root="http://jfontchooser.sourceforge.jp/repository"
+				m2compatible="true" />
+			<ibiblio name="ibiblio" />
+			<resolver ref="main" />
+		</chain>
+	</resolvers>
+</ivysettings>

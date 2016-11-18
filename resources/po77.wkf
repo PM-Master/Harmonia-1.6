@@ -1,0 +1,24 @@
+Type: Purchase order
+Number:po77
+Requester:steve
+Item:pen
+Quantity:100
+Unit price:2.00
+Item:
+Quantity:
+Unit price:
+Item:
+Quantity:
+Unit price:
+Item:
+Quantity:
+Unit price:
+Item:
+Quantity:
+Unit price:
+Official:alice
+Signature:alice
+Official:Contracting
+Signature:bob
+Official:Accts Pbl
+Signature:charlie

@@ -1,0 +1,79 @@
+script demo
+
+when any user performs "User create"
+do
+     create user attribute uattr_name_of_user(user_new())
+            with property prop_name_of_user(user_new())
+            in policy pol_discr()
+
+     assign user user_new() to user attribute uattr_name_of_new_user()
+
+     assign user attribute uattr_name_of_new_user() to
+            user attribute uattr_discr_users()
+
+     create object attribute oattr_home_of_new_user()
+            with property prop_home_of_new_user()
+            in policy pol_discr()
+
+     create object obj_rep_of_home_of_new_user()
+            representing object attribute oattr_home_of_new_user()
+                 and ascendants
+            in policy pol_discr()
+
+     create object attribute oattr_inbox_of_new_user()
+            with property prop_inbox_of_new_user()
+            in object attribute oattr_inboxes()
+
+     create object attribute oattr_winbox_of_new_user()
+            with property prop_inbox_of_new_user()
+            in object attribute oattr_inbox_of_new_user()
+
+     create object attribute oattr_outbox_of_new_user()
+            with property prop_outbox_of_new_user()
+            in object attribute oattr_outboxes()
+
+     create object obj_rep_of_outbox_of_new_user()
+            representing object attribute oattr_outbox_of_new_user()
+                 and ascendants
+            in object attribute oattr_outboxes()
+
+     create object attribute oattr_witems_of_new_user()
+            with property prop_witems_of_new_user()
+            in object attribute oattr_witems()
+
+     grant uattr_name_of_new_user() operations "File read", "File write"
+            on object attribute oattr_home_of_new_user()
+
+     grant uattr_name_of_new_user() operations
+            "Object attribute create object",
+            "Object attribute create object attribute",
+            "Object attribute create operation set",
+            "Object attribute assign",
+            "Object attribute assign to",
+            "Operation set assign to",
+            "Operation set assign",
+            "Entity represent"
+            on object attribute oattr_rep_of_home_of_new_user()
+
+     grant uattr_name_of_new_user() operations
+            "User assign",
+            "User attribute assign to operation set"
+            on object attribute oattr_rep_of_discr_users()
+
+     grant uattr_name_of_new_user() operations
+            "Object attribute assign",
+            "Object attribute assign to"
+            on object attribute oattr_rep_of_outbox_of_new_user()
+
+     grant uattr_name_of_new_user() operation "File read"
+            on object attribute oattr_inbox_of_new_user()
+
+     grant uattr_name_of_new_user() operation "File write"
+            on object attribute oattr_winbox_of_new_user()
+
+     grant uattr_name_of_new_user() operation "File read"
+            on object attribute oattr_outbox_of_new_user()
+
+     grant uattr_name_of_new_user() operations "File read", "File write"
+            on object attribute oattr_witems_of_new_user()
+

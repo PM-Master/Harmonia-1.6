@@ -1,0 +1,14 @@
+script demo
+
+// For MLS
+when any user performs "Object read"
+    on any object of attribute TS
+  do deny process process_default()
+    operation "File write" on
+      complement of attribute TS
+
+when any user performs "Object read"
+    on any object of attribute S
+  do deny process process_default()
+    operation "File write" on
+      complement of attribute S_TS

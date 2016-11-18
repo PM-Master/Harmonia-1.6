@@ -1,0 +1,13 @@
+alter table application auto_increment = 101;
+alter table deny auto_increment = 101;
+alter table host auto_increment = 101;
+alter table keystore auto_increment = 101;
+alter table node auto_increment = 101;
+alter table object_class auto_increment = 101;
+alter table object_detail auto_increment = 101;
+alter table operation auto_increment = 101;
+alter table session auto_increment = 101;
+alter table template auto_increment = 101;
+alter table assignment auto_increment = 101;
+alter table assignment_path auto_increment = 101;
+alter table assignment auto_increment = 101;

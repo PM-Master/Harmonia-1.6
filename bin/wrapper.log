@@ -1,0 +1,31 @@
+STATUS | wrapper  | 2012/05/07 14:41:02 | PM Kernel Simulator installed.
+STATUS | wrapper  | 2012/05/07 14:41:09 | --> Wrapper Started as Console
+STATUS | wrapper  | 2012/05/07 14:41:10 | Launching a JVM...
+INFO   | jvm 1    | 2012/05/07 14:41:11 | Wrapper (Version 3.2.3) http://wrapper.tanukisoftware.org
+INFO   | jvm 1    | 2012/05/07 14:41:11 |   Copyright 1999-2006 Tanuki Software, Inc.  All Rights Reserved.
+INFO   | jvm 1    | 2012/05/07 14:41:11 | 
+INFO   | jvm 1    | 2012/05/07 14:41:11 | WrapperSimpleApp: Unable to locate the class gov.nist.csd.pm.ksim.KernelSimulator: java.lang.ClassNotFoundException: gov.nist.csd.pm.ksim.KernelSimulator
+INFO   | jvm 1    | 2012/05/07 14:41:11 | 
+INFO   | jvm 1    | 2012/05/07 14:41:11 | WrapperSimpleApp Usage:
+INFO   | jvm 1    | 2012/05/07 14:41:11 |   java org.tanukisoftware.wrapper.WrapperSimpleApp {app_class} [app_arguments]
+INFO   | jvm 1    | 2012/05/07 14:41:11 | 
+INFO   | jvm 1    | 2012/05/07 14:41:11 | Where:
+INFO   | jvm 1    | 2012/05/07 14:41:11 |   app_class:      The fully qualified class name of the application to run.
+INFO   | jvm 1    | 2012/05/07 14:41:11 |   app_arguments:  The arguments that would normally be passed to the
+INFO   | jvm 1    | 2012/05/07 14:41:11 |                   application.
+STATUS | wrapper  | 2012/05/07 14:41:13 | <-- Wrapper Stopped
+STATUS | wrapper  | 2012/05/07 14:43:00 | --> Wrapper Started as Console
+STATUS | wrapper  | 2012/05/07 14:43:00 | Launching a JVM...
+INFO   | jvm 1    | 2012/05/07 14:43:00 | Wrapper (Version 3.2.3) http://wrapper.tanukisoftware.org
+INFO   | jvm 1    | 2012/05/07 14:43:00 |   Copyright 1999-2006 Tanuki Software, Inc.  All Rights Reserved.
+INFO   | jvm 1    | 2012/05/07 14:43:00 | 
+INFO   | jvm 1    | 2012/05/07 14:43:00 | WrapperSimpleApp: Unable to locate the class gov.nist.csd.pm.ksim.KernelSimulator: java.lang.ClassNotFoundException: gov.nist.csd.pm.ksim.KernelSimulator
+INFO   | jvm 1    | 2012/05/07 14:43:00 | 
+INFO   | jvm 1    | 2012/05/07 14:43:00 | WrapperSimpleApp Usage:
+INFO   | jvm 1    | 2012/05/07 14:43:00 |   java org.tanukisoftware.wrapper.WrapperSimpleApp {app_class} [app_arguments]
+INFO   | jvm 1    | 2012/05/07 14:43:00 | 
+INFO   | jvm 1    | 2012/05/07 14:43:00 | Where:
+INFO   | jvm 1    | 2012/05/07 14:43:00 |   app_class:      The fully qualified class name of the application to run.
+INFO   | jvm 1    | 2012/05/07 14:43:00 |   app_arguments:  The arguments that would normally be passed to the
+INFO   | jvm 1    | 2012/05/07 14:43:00 |                   application.
+STATUS | wrapper  | 2012/05/07 14:43:02 | <-- Wrapper Stopped

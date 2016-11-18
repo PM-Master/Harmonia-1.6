@@ -1,0 +1,39 @@
+script demo
+
+// For MLS
+when any user performs "Object read"
+    on any object of attribute TS
+  do deny session session_default()
+    operation "File write" on
+      complement of attribute TS
+
+when any user performs "Object read"
+    on any object of attribute S
+  do deny session session_default()
+    operation "File write" on
+      complement of attribute S_TS
+
+// For PII policy to delete all PII data after 90 days of use.
+when any user of attribute Doctor performs "Object read"
+     on any object of any record
+  do
+    assign object attribute oattr_record_of_default_obj()
+      to object attribute Today
+    create rule rule_composed_of(
+     "when session #1 performs \"Object write\" on any object do assign object attribute oattr_of_default_obj() to object attribute \"Today\"", id_or_name_as_string(session_default()))
+
+
+when any user performs "Object read"
+     on any object of attribute Today
+  do
+    create rule rule_composed_of(
+     "when session #1 performs \"Object write\" on any object do assign object attribute oattr_of_default_obj() to object attribute \"Today\"", id_or_name_as_string(session_default()))
+
+
+// For Confinement of PII data
+when any user performs "Object read"
+     on any object of attribute "CMR Columns"
+  do
+    deny session session_default() operation "File write" on
+      complement of attribute "CMR Columns"
+

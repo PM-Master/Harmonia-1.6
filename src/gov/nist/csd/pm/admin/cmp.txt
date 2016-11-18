@@ -1,0 +1,192 @@
+Comparing files DenyEditor.java and ..\OLDPMADMIN\DENYEDITOR.JAVA
+***** DenyEditor.java
+
+    JPanel radioButtonPane = new JPanel(new GridLayout(3,1));
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+
+
+    JPanel radioButtonPane = new JPanel(new GridLayout(3,1));
+*****
+
+***** DenyEditor.java
+    
+    attrUserLabel = new JLabel("User:");
+    attrUserLabel.setEnabled(false);
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    
+    attrUserLabel = new JLabel("User:                      ");
+    attrUserLabel.setEnabled(false);
+*****
+
+***** DenyEditor.java
+
+    JPanel attrUserPane = new JPanel();
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+
+intersectBox = new JCheckBox("Intersection");
+
+    JPanel attrUserPane = new JPanel();
+*****
+
+***** DenyEditor.java
+    addComp(attrUserPane, attrUserField, 0, 1, 3, 1);
+    attrUserPane.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    addComp(attrUserPane, attrUserField, 0, 1, 3, 1);
+constraints.insets = new Insets(5, 0, 0, 0);
+addComp(attrUserPane, intersectBox, 0, 2, 1, 1);
+    attrUserPane.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
+*****
+
+***** DenyEditor.java
+    
+    JPanel upperLeftPane = new JPanel(new BorderLayout());
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    
+
+    
+    
+    JPanel upperLeftPane = new JPanel(new BorderLayout());
+*****
+
+***** DenyEditor.java
+
+    // Upper right pane contains the user list or the user attribute list.
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // Upper right pane contains the user list or the user attribute list.
+*****
+
+***** DenyEditor.java
+    JScrollPane attrUserListScrollPane = new JScrollPane(attrUserList);
+    attrUserListScrollPane.setPreferredSize(new Dimension(240,165));
+
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    JScrollPane attrUserListScrollPane = new JScrollPane(attrUserList);
+    attrUserListScrollPane.setPreferredSize(new Dimension(240,195));
+
+*****
+
+***** DenyEditor.java
+    JScrollPane opListScrollPane = new JScrollPane(opList);
+    opListScrollPane.setPreferredSize(new Dimension(240,165));
+
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    JScrollPane opListScrollPane = new JScrollPane(opList);
+    opListScrollPane.setPreferredSize(new Dimension(240,175));
+
+*****
+
+***** DenyEditor.java
+    
+    JLabel contLabel = new JLabel("Containers to add:");
+    contListModel = new DefaultListModel();
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    
+    JLabel contLabel = new JLabel("Containers to add:         ");
+    contListModel = new DefaultListModel();
+*****
+
+***** DenyEditor.java
+    contListScrollPane.setPreferredSize(new Dimension(240,140));
+    complementBox = new JCheckBox("!Complementary");
+    intersectBox = new JCheckBox("Intersection");
+    
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    contListScrollPane.setPreferredSize(new Dimension(240,140));
+    complementBox = new JCheckBox("!Container's complement");
+    
+//    intersectBox = new JCheckBox("Intersection");
+    
+*****
+
+***** DenyEditor.java
+    addComp(contPane, contListScrollPane, 0, 1, 3, 1);
+    addComp(contPane, complementBox, 0, 2, 1, 1);
+    addComp(contPane, intersectBox, 2, 2, 1, 1);
+    contPane.setBorder(BorderFactory.createEmptyBorder(5, 10, 0, 0));
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    addComp(contPane, contListScrollPane, 0, 1, 3, 1);
+    constraints.insets = new Insets(10, 0, 0, 0);
+    addComp(contPane, complementBox, 0, 2, 1, 1);
+//    addComp(contPane, intersectBox, 2, 2, 1, 1);
+    contPane.setBorder(BorderFactory.createEmptyBorder(5, 10, 0, 0));
+*****
+
+***** DenyEditor.java
+    JScrollPane conListScrollPane = new JScrollPane(denyList);
+    conListScrollPane.setPreferredSize(new Dimension(240,160));
+
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    JScrollPane conListScrollPane = new JScrollPane(denyList);
+    conListScrollPane.setPreferredSize(new Dimension(155,160));
+
+*****
+
+***** DenyEditor.java
+    JScrollPane op2ListScrollPane = new JScrollPane(op2List);
+    op2ListScrollPane.setPreferredSize(new Dimension(240,160));
+
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    JScrollPane op2ListScrollPane = new JScrollPane(op2List);
+    op2ListScrollPane.setPreferredSize(new Dimension(155,160));
+
+*****
+
+***** DenyEditor.java
+    JScrollPane cont2ListScrollPane = new JScrollPane(cont2List);
+    cont2ListScrollPane.setPreferredSize(new Dimension(240,160));
+
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    JScrollPane cont2ListScrollPane = new JScrollPane(cont2List);
+    cont2ListScrollPane.setPreferredSize(new Dimension(155,160));
+
+*****
+
+***** DenyEditor.java
+    cont2Pane.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
+    
+    JPanel lowerPane = new JPanel();
+    lowerPane.setLayout(new GridLayout(1,3));
+    lowerPane.add(conPane);
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    cont2Pane.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
+
+    JPanel lowerPane = new JPanel();
+    lowerPane.setLayout(new BoxLayout(lowerPane, BoxLayout.X_AXIS));
+    lowerPane.add(conPane);
+*****
+
+***** DenyEditor.java
+    lowerPane.add(cont2Pane);
+    
+    lowerPane.setBorder(BorderFactory.createCompoundBorder(
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    lowerPane.add(cont2Pane);
+    lowerPane.setBorder(BorderFactory.createCompoundBorder(
+*****
+
+***** DenyEditor.java
+    entitiesPane.add(lowerPane, BorderLayout.SOUTH);
+
+    // Buttons.
+***** ..\OLDPMADMIN\DENYEDITOR.JAVA
+    entitiesPane.add(lowerPane, BorderLayout.SOUTH);
+    
+    // Buttons.
+*****
+

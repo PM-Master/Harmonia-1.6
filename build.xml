@@ -1,0 +1,1039 @@
+<?xml version="1.0"?>
+<!-- Policy Machine -->
+
+<project xmlns:ivy="antlib:org.apache.ivy.ant" name="Policy Machine 1.4"
+	default="clean-and-jar-all" basedir=".">
+
+	<description>Policy Machine (PM) v1.4 build file. This build has been
+		altered dramatically from previous
+		PM build scripts. It now supports
+		dependency management of 3rd party
+		libs. It also attempts to lift as
+		much configuration as possible from the developer. Hard coded
+		variables
+		are replaced with variables found at
+		build time or based on an
+		initial configuration step.
+
+		It is designed around the idea that this
+		buildfile should:
+		1. ...be simple to use. Hopefully requiring no manual
+		steps. Expert
+		targets are provided for utility.
+		2 ...degrade gracefully,
+		with contingencies should errors occur. One
+		error or missing library
+		should not break the build.
+		3. ...make it easy to incorporate new
+		libraries and components.
+		Additions should require as few changes to
+		the build as possible.
+	</description>
+
+	<target name="usage">
+		<echo>Usage for the Policy Machine build file:</echo>
+		<echo />
+		<echo>default target is clean-and-jar-all</echo>
+		<echo />
+		<echo>Other targets:</echo>
+		<echo />
+		<echo>pristine - same as clean all but removes ivy cache,</echo>
+		<echo> ivy install and openoffice-install.properties</echo>
+		<echo>jar-all - create jar files, skipping those which</echo>
+		<echo> do not need updating</echo>
+		<echo>jar-*app-name* - create jar for a specific application</echo>
+		<echo>build-all - build all applications</echo>
+		<echo>build-*app-name* - build a specific application from source</echo>
+		<echo />
+		<echo>Valid applications/components:</echo>
+		<echo />
+		<echo>Primary Components</echo>
+		<echo />
+		<echo>operating-environment - User entry-point to into the</echo>
+		<echo> policy machine system.</echo>
+		<echo>kernel-simulator - Kernel Simulator</echo>
+		<echo>server - The server component of the Policy Machine</echo>
+		<echo />
+		<echo>Administrator Tools:</echo>
+		<echo />
+		<echo>admin - Administration Application</echo>
+		<echo />
+		<echo>User Applications:</echo>
+		<echo />
+		<echo>acctrec - Account Records Editor</echo>
+		<echo>grant - E-Grant</echo>
+		<echo>medrec - Medical Records application</echo>
+		<echo>schemabuilder - Schema Builder</echo>
+		<echo>tableeditor - Table Editor</echo>
+		<echo>openoffice - Open Office integration</echo>
+		<echo>msoffice - MS Office integration. (Prototype: Non-functional)</echo>
+		<echo>rtf - Rich Text Editor</echo>
+		<echo>rtfth - Rich Text Editor (Trojan Horse demo)</echo>
+		<echo />
+		<echo>Support Components:</echo>
+		<echo />
+		<echo>commons - A library containing commonly used classes </echo>
+		<echo> shared by all applications.</echo>
+		<echo>exporter - Data exporting tool</echo>
+
+
+	</target>
+
+
+	<!-- BEGIN CLIENT SPECIFIC CONFIG -->
+	<!-- CHANGE THESE BEFORE INSTALLING ON A NEW CLIENT -->
+	<!-- property name="pm.engine.name" value="win08-SQ"/ -->
+	<property name="pm.engine.name" value="win08-SQ" />
+	<property name="openoffice.dir" location="C:/Program Files (x86)/OpenOffice 4" />
+	<property name="pm.work.directory" location="C:/PmWorkarea" />
+	<!-- END CLIENT SPECIFIC CONFIG -->
+
+
+	<import file="build-part-ivy-resolver.xml" />
+
+	<!-- Variables -->
+	<property name="pmversion" value="1.6" />
+	<!-- Project Directories -->
+	<property name="build" location="build" />
+	<property name="dist" location="dist" />
+	<property name="bin" location="bin" />
+	<property name="conf" location="conf" />
+	<property name="lib" location="lib" />
+	<property name="root" location="." />
+	<property name="src" location="src" />
+	<property name="test-src" location="test-src" />
+	<property name="test-build" location="test-build" />
+	<property name="doc" location="doc" />
+	<property name="ivy" location="ivy" />
+	<property name="images" location="${src}/images" />
+	<property name="javadoc" location="${doc}/javadoc" />
+	<property name="keystores" location="keystores" />
+	<!-- statically defined hostname, at least put these in a properties file,
+		find out if we can aquire machine name algorithmically -->
+	<property environment="env" />
+	<property name="env.HOSTNAME" value="${env.COMPUTERNAME}" />
+	<property name="pm.host.name" value="${env.HOSTNAME}" />
+	<property name="openoffice.install.settings.file" location="openoffice-install.properties" />
+
+	<property name="javamail" location="lib" />
+
+	<property name="openoffice.program.dir" location="${openoffice.dir}/program" />
+
+
+	<script language="javascript">
+        <![CDATA[
+        //I can't believe I couldn't convert to lowercase without resorting to scripting.
+        println("Converting env.HOSTNAME to lowercase value of:" + project.getProperty("env.HOSTNAME"));
+        project.setProperty("pm.host.name", project.getProperty("env.HOSTNAME").toLowerCase());
+
+
+        importPackage(java.io);
+        importPackage(java.lang);
+        importPackage(javax.swing);
+        importPackage(java.util);
+
+        var oo_install_props_file = new File(project.getProperty("openoffice.install.settings.file"));
+
+        function askForDirectoryLocation(title){
+            var root = project.getProperty("en") ;
+            var fc = new JFileChooser();
+            fc.setDialogTitle(title);
+            fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            fc.showDialog(null, "Choose");
+            return fc.getSelectedFile();
+        }
+        var oo_endpoints = {
+        "program" : "openoffice.program.dir"};
+
+        function findFile(name, current, max_depth){
+
+            //println("comparing " + current.getName() + " to " + name);
+            if(current.getName().equals(name)){
+                //println("true");
+                return current;
+            }
+            //println("false, continuing");
+            if(max_depth == null){
+                max_depth = 1;
+            }
+            if(current.isDirectory() && max_depth > 0){
+                //println("checking the contents of directory " + current.getAbsolutePath());
+                var entries = current.listFiles();
+                for(var i = 0; i < entries.length; i++){
+                    var found = findFile(name, entries[i], max_depth - 1);
+                    if(found != null){
+                        return found;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function addPropertiesToProject(props){
+            println("props" + props)
+
+        }
+
+        var oo_install_dir = null;
+        var props = new Properties();
+        if(!oo_install_props_file.exists()){
+            while(oo_install_dir == null){
+                oo_install_dir = askForDirectoryLocation("Install Directory of Open Office.org");
+            }
+            props.setProperty("openoffice.dir", oo_install_dir.getAbsolutePath());
+            for(var name in oo_endpoints){
+                var ant_prop_name = oo_endpoints[name];
+                println("looking up location of prop" + ant_prop_name + "with value" + name);
+                var result = findFile(name, oo_install_dir, 5);
+                if(result != null){
+                    println("File(or directory) " + name + " found at " + result.getAbsolutePath());
+                    props.setProperty(ant_prop_name, result.getAbsolutePath());
+                }
+                else{
+                    println("Could not find the file(or dir) " + name);
+                }
+            }
+            props.store(new FileOutputStream(oo_install_props_file), "Generated paths to OpenOffice libs, erase this file to auto-regenerate");
+       }
+       else{
+            props.load(new FileInputStream(oo_install_props_file))
+            //JOptionPane.showMessageDialog(null, "Open Office config properties file exists!");
+        }
+
+        addPropertiesToProject(props);
+     ]]>
+	</script>
+
+
+	<!-- defines for commonly used keystore, truststore, and port settings -->
+	<property name="serverKeystore" value="serverKeystore" />
+	<property name="serverTruststore" value="serverTruststore" />
+	<property name="sesmgrKeystore" value="ws-sysKeystore" />
+	<property name="clientTruststore" value="clientTruststore" />
+	<property name="sesmgrSimPort" value="8081" />
+	<property name="sesmgrExPort" value="8082" />
+
+	<!-- defines for running a file through and ide (e.g. NetBeans}. These aren't
+		used in this file but in a file used by the IDE. -->
+	<property name="runFileKeystore" value="${sesmgrKeystore}" />
+	<property name="runFileTruststore" value="${clientTruststore}" />
+	<property name="runFileSimPort" value="${sesmgrSimPort}" />
+	<property name="runFileExPort" value="${sesmgrExPort}" />
+
+	<!-- end IDE defines -->
+
+
+	<!-- External Project Dependencies -->
+	<property name="jfontchooser.project.name" value="jfontchooser-1.0.5" />
+	<property name="jfontchooser.project.dir" location="../${jfontchooser.project.name}/" />
+	<property name="jfontchooser.dist.dir" location="${jfontchooser.project.dir}/target" />
+
+
+	<!-- Third-party classes and JAR files -->
+
+
+	<!-- Compiler properties -->
+	<property name="javac.nowarn" value="false" />
+	<property name="javac.debug" value="on" />
+	<property name="javac.deprecation" value="true" />
+	<!-- Compile-time optimiztion is ignored as of Java 1.3 <property name="javac.optimize"
+		value="on" /> -->
+	<property name="javac.debuglevel" value="lines,vars,source" />
+
+
+	<!-- Jar Dependency Names <property name="mig.jar.name" value="miglayout-3.7.3.1.jar"
+		/> <property name="fontchooser.jar.name" value="jfontchooser-1.0.5.jar"/>
+		<property name="colorchooser.jar.name" value="colorchooser.jar"/> <property
+		name="colorpicker.jar.name" value="colorpicker.jar"/> <property name="jna.jar.name"
+		value="jna-3.2.7-pm.jar" /> <property name="platform.jar.name" value="jna-3.2.7-pm-platform.jar"
+		/> <property name="guava.jar.name" value="guava-r07.jar" /> <property name="junit.jar.name"
+		value="junit.jar"/> <property name="jgoodies.bindings.jar.name" value="jgoodies-binding-2.0.6.jar"/>
+		<property name="jgoodies.common.jar.name" value="jgoodies-common-1.0.0.jar"/>
+		<property name="jgoodies.forms.jar.name" value="jgoodies-forms-1.2.1.jar"/>
+		<property name="jgoodies.validation.jar.name" value="jgoodies-validation-2.1.0.jar"/>
+		Defining class paths -->
+
+	<path id="library.dependencies.path">
+		<fileset dir="lib" includes="*.jar">
+			<exclude name="*sources.jar" />
+			<exclude name="*javadoc.jar" />
+		</fileset>
+	</path>
+
+	<path id="build.path">
+		<path refid="library.dependencies.path" />
+
+	</path>
+
+	<path id="run.path">
+		<pathelement path="${dist}/pm-commons-${pmversion}.jar" />
+		<path refid="build.path" />
+	</path>
+
+	<path id="tests.build.path">
+		<path refid="build.path" />
+		<pathelement path="${build}" />
+		<fileset dir="lib" includes="junit*.jar">
+			<exclude name="*sources.jar" />
+			<exclude name="*javadoc.jar" />
+		</fileset>
+	</path>
+
+	<path id="tests.run.path">
+		<path refid="tests.build.path" />
+		<pathelement path="${test-build}" />
+	</path>
+
+	<path id="operating.environment.runpath">
+		<pathelement location="${dist}/pm-user-${pmversion}.jar" />
+		<pathelement location="${dist}/pm-exporter-${pmversion}.jar" />
+		<path refid="run.path" />
+	</path>
+
+	<path id="fallback.runpath">
+		<pathelement location="${dist}/pm-${pmversion}.jar" />
+		<path refid="build.path" />
+	</path>
+
+
+	<!-- Helper Targets -->
+
+	<!-- Ant target which resolves dependencies for the Policy Machine This
+		should be and should remain the only place where <ivy:*> tasks are referenced. -->
+
+
+	<target name="resolve-dependencies" depends="install-ivy">
+
+		<ivy:retrieve />
+		<ivy:buildlist reference="ide.buildlist.fileset">
+			<fileset dir="." includes="**/build.xml" />
+		</ivy:buildlist>
+	</target>
+	<target name="copy-resources">
+		<copy todir="${build}/images">
+			<fileset dir="${images}" />
+		</copy>
+	</target>
+	<!-- Clean Targets -->
+
+	<target name="make-dirs">
+		<mkdir dir="${test-build}" />
+		<mkdir dir="${build}" />
+		<mkdir dir="${build}/images" />
+		<mkdir dir="${javadoc}" />
+		<mkdir dir="${dist}" />
+	</target>
+
+	<target name="clean-all">
+		<delete dir="${test-build}" />
+		<delete dir="${build}" />
+		<delete dir="${javadoc}" />
+		<delete dir="${dist}" />
+		<!-- Make new directories -->
+
+		<antcall target="make-dirs" />
+	</target>
+	<!-- In this instance clean is just a pseudonym for clean-all. Only provided
+		because it's a well-known ant target -->
+	<target name="clean">
+		<antcall target="clean-all" />
+	</target>
+
+
+	<!-- performs clean-all and removes artifacts created when ant was first
+		run (Ivy and openoffice-install.properties) -->
+	<target name="pristine" depends="clean-all, clean-cache, clean-ivy">
+		<delete file="${openoffice.install.settings.file}" />
+	</target>
+
+
+	<target name="clean-and-jar-all">
+		<antcall target="clean-all" />
+		<antcall target="jar-all" />
+	</target>
+
+	<target name="check-open-office-dir">
+		<available file="${openoffice.dir}" property="openoffice.dir.exists" />
+	</target>
+
+	<!-- Compile Targets -->
+
+	<target name="build-tests" depends="build-all">
+		<property name="cp" refid="tests.build.path" />
+		<echo>Compiling tests from ${test-src} with classpath ${cp} to
+			${test-build}</echo>
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${test-src}"
+			destdir="${test-build}" listfiles="yes" includeantruntime="false">
+			<classpath refid="tests.build.path" />
+		</javac>
+	</target>
+
+	<target name="build-all"
+		depends="build-admin, build-server, build-kernel-simulator, build-operating-environment, build-grant, build-medrec, build-schemabuilder, build-tableeditor, build-acctrec, build-msoffice, build-openoffice, build-rtf, build-rtfth, build-workflow, build-workflow-pdf, build-pdf-viewer, build-workflow-old">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" listfiles="yes" includeantruntime="false">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-commons" depends="copy-resources">
+
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/common/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-admin" depends="build-commons">
+
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/admin/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-exporter" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/exporter/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-server" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}"
+			includes="gov/nist/csd/pm/server/**
+        				 gov/nist/csd/pm/admin/**
+        				 gov/nist/csd/pm/sql/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-kernel-simulator" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/ksim/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-operating-environment" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}"
+			includes="gov/nist/csd/pm/user/**
+        				 gov/nist/csd/pm/appeditor/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+
+	<target name="build-grant" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/grantor/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-medrec" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/medrec/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-schemabuilder" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/schema/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-tableeditor" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/schema/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-acctrec" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/acctrec/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-msoffice" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/office/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-openoffice" depends="build-commons, openoffice-runpath-available"
+		if="openoffice.dir.exists">
+
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/openoffice/**">
+			<classpath path="${openoffice.buildpath.prop}" />
+		</javac>
+	</target>
+	<target name="build-pdf-viewer" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/pdfviewer/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-rtf" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/rtf/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-rtfth" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/rtfth/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-workflow" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/oldworkflow/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+
+	<target name="build-workflow-pdf" depends="build-commons, build-pdf-viewer">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/workflow/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<target name="build-workflow-old" depends="build-commons">
+		<javac debug="${javac.debug}" debuglevel="${javac.debuglevel}"
+			nowarn="${javac.nowarn}" deprecation="${javac.deprecation}" srcdir="${src}"
+			destdir="${build}" includes="gov/nist/csd/pm/application/oldworkflow/**">
+			<classpath refid="build.path" />
+		</javac>
+	</target>
+	<!-- PREPARE BATCH AND CONFIGURATION FILES -->
+
+	<target name="openoffice-runpath-available" depends="check-open-office-dir"
+		if="openoffice.dir.exists">
+		<echo>OpenOffice dir exists ${openoffice.program.dir}</echo>
+		<path id="openoffice.path">
+			<fileset dir="${openoffice.dir}">
+				<include name="**/juh.jar" />
+				<include name="**/jurt.jar" />
+				<include name="**/ridl.jar" />
+				<include name="**/unoil.jar" />
+			</fileset>
+			<!-- The following path element is not a mistake but required in order
+				to get Open Office 3 to function. -->
+			<pathelement location="${openoffice.program.dir}" />
+		</path>
+		<path id="openoffice.build.path">
+			<path refid="build.path" />
+			<path refid="openoffice.path" />
+		</path>
+		<path id="openoffice.run.path">
+			<path refid="run.path" />
+			<path refid="openoffice.path" />
+		</path>
+		<property name="openoffice.runpath.prop" refid="openoffice.run.path" />
+		<property name="openoffice.buildpath.prop" refid="openoffice.build.path" />
+	</target>
+
+	<target name="openoffice-runpath-unavailable" depends="check-open-office-dir"
+		unless="openoffice.dir.exists">
+		<echo>OpenOffice dir doesnt exist</echo>
+		<path id="openoffice.build.path">
+			<path refid="build.path" />
+		</path>
+		<path id="openoffice.run.path">
+			<path refid="run.path" />
+		</path>
+		<property name="openoffice.runpath.prop" refid="openoffice.run.path" />
+		<property name="openoffice.buildpath.prop" refid="openoffice.build.path" />
+	</target>
+
+	<target name="prepare-support-files"
+		depends="resolve-dependencies, openoffice-runpath-available, openoffice-runpath-unavailable">
+		<echo message="hostname = ${env.HOSTNAME}" />
+
+		<echo message="pm hostname = ${pm.host.name}" />
+		<property name="dist.runpath.prop" refid="run.path" />
+		<property name="operating.environment.runpath.prop" refid="operating.environment.runpath" />
+		<filter token="pm.version" value="${pmversion}" />
+		<filter token="jar.dependencies" value="${dist.runpath.prop}" />
+		<filter token="pm.host.name" value="${pm.host.name}" />
+		<filter token="pm.engine.name" value="${pm.engine.name}" />
+		<filter token="pm.java.home" value="${env.JAVA_HOME}" />
+		<filter token="pm.install.dir" value="${root}" />
+		<filter token="pm.work.dir" value="${pm.work.directory}" />
+		<filter token="client.keystore" value="${sesmgrKeystore}" />
+		<filter token="client.truststore" value="${clientTruststore}" />
+		<filter token="server.keystore" value="${serverKeystore}" />
+		<filter token="server.truststore" value="${serverTruststore}" />
+		<filter token="operating.environment.runpath" value="${operating.environment.runpath.prop}" />
+		<filter token="openoffice.runpath" value="${openoffice.runpath.prop}" />
+
+
+		<copy file="${conf}/templates/demo-1.4.pm"
+			tofile="${conf}/generated-demo-${pm.host.name}-${pmversion}.pm"
+			filtering="true" overwrite="true" />
+
+	</target>
+
+	<!-- STEVEQ: Only overwrite BAT files if user permits. -->
+	<target name="copyBatFiles" depends="copySetup, skipCopy"
+		if="doCopy">
+		<echo message="Writing BAT files..." />
+		<copy todir="${bin}" filtering="true" overwrite="true">
+			<fileset dir="${bin}/templates" />
+		</copy>
+	</target>
+
+	<target name="copySetup">
+		<input message="(Over)write BAT files? If fresh checkout, select 'y'. (y/n) " addproperty="copyBoolean" />
+		<condition property="doCopy">
+			<equals arg1="${copyBoolean}" arg2="y" trim="true" />
+		</condition>
+	</target>
+
+	<target name="skipCopy" unless="doCopy">
+		<echo message="Skipping BAT files..." />
+	</target>
+
+
+
+	<!-- *********************************************************************** -->
+
+
+	<!-- END PREPARE BATCH AND CONFIGRUATION FILES -->
+
+
+	<!-- Dist Targets -->
+	<target name="jar-all" description="Builds and prepares the Policy Machine"
+		depends="prepare-support-files, jar-admin, jar-server, jar-kernel-simulator, jar-operating-environment, jar-exporter, jar-grant, jar-medrec, jar-schemabuilder, jar-tableeditor, jar-acctrec, jar-msoffice, jar-openoffice, jar-rtf, jar-rtfth, jar-workflow, jar-workflow-pdf, jar-pdf-viewer, jar-workflow-old">
+		<jar destfile="${dist}/pm-${pmversion}.jar" basedir="${build}" />
+	</target>
+	<!-- CREATE COMPONENT ONLY JAR FILES -->
+	<target name="jar-admin" description="Prepares the admin client for distribution"
+		depends="jar-commons,build-admin">
+		<jar destfile="${dist}/pm-admin-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/admin/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class" value="gov.nist.csd.pm.admin.PmAdmin" />
+			</manifest>
+		</jar>
+
+
+	</target>
+	<target name="jar-exporter" description="Prepares the exporter for distribution"
+		depends="jar-commons,build-exporter">
+		<jar destfile="${dist}/pm-exporter-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/exporter/**">
+			<manifest>
+				<attribute name="Main-Class" value="gov.nist.csd.pm.exporter.Exporter" />
+			</manifest>
+		</jar>
+	</target>
+
+
+	<target name="jar-server"
+		description="Prepares the Policy Machine server for distribution"
+		depends="build-server">
+		<jar destfile="${dist}/pm-server-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/server/**
+        			   gov/nist/csd/pm/admin/**
+        			   gov/nist/csd/pm/sql/**" />
+
+
+	</target>
+	<target name="jar-kernel-simulator" description="Prepares the Kernel simulator for distribution"
+		depends="build-kernel-simulator">
+		<jar destfile="${dist}/pm-ksim-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/ksim/**" />
+
+
+	</target>
+	<target name="jar-operating-environment"
+		description="Prepares the Policy Machine Operational Environment for distribution"
+		depends="build-operating-environment, jar-grant">
+		<jar destfile="${dist}/pm-user-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/user/**
+					   images/**
+        			   gov/nist/csd/pm/appeditor/**" />
+	</target>
+
+	<target name="jar-commons"
+		description="Prepares a jar containing classes common to all applications"
+		depends="build-commons">
+		<jar destfile="${dist}/pm-commons-${pmversion}.jar" basedir="${build}"
+			includes="
+    				gov/nist/csd/pm/common/**
+					images/*
+    				images/common/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.grantor.Grantor" />
+			</manifest>
+		</jar>
+	</target>
+	<!-- Application JAR file targets -->
+
+
+	<target name="jar-grant" description="Prepares the E-grant for distribution"
+		depends="jar-commons,build-grant">
+		<jar destfile="${dist}/pm-app-grant-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/grantor/**
+    				images/grantor/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.grantor.Grantor" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-medrec"
+		description="Prepares the medical record editor for distribution"
+		depends="jar-commons,build-medrec">
+		<jar destfile="${dist}/pm-app-medrec-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/medrec/**
+    				images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.medrec.MREditor" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-schemabuilder" description="Prepares the Schema Builder for distribution"
+		depends="jar-commons,build-schemabuilder">
+		<jar destfile="${dist}/pm-app-schemabuilder-${pmversion}.jar"
+			basedir="${build}"
+			includes="gov/nist/csd/pm/application/schema/**
+	    			images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.schema.builder.SchemaBuilder3" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-tableeditor" description="Prepares the Table Editor for distribution"
+		depends="jar-commons,build-tableeditor">
+		<jar destfile="${dist}/pm-app-tableeditor-${pmversion}.jar"
+			basedir="${build}"
+			includes="gov/nist/csd/pm/application/schema/**
+		    		images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.schema.tableeditor.TableEditor" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-acctrec" description="Prepares the acctrec application for distribution"
+		depends="jar-commons,build-acctrec">
+		<jar destfile="${dist}/pm-app-acctrec-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/acctrec/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.acctrec.AcctEditor" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-msoffice" description="Prepares the MS Office invoker for distribution"
+		depends="jar-commons,build-msoffice">
+		<jar destfile="${dist}/pm-app-msoffice-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/office/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.office.MSOfficeLauncher" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-openoffice" description="Prepares the OpenOffice invoker for distribution"
+		depends="jar-commons,build-openoffice">
+		<jar destfile="${dist}/pm-app-openoffice-${pmversion}.jar"
+			basedir="${build}" includes="gov/nist/csd/pm/application/openoffice/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.openoffice.OfficeLauncher" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-pdf-viewer" description="Prepares the pdf-viewer for distribution"
+		depends="jar-commons,build-pdf-viewer">
+		<jar destfile="${dist}/pm-app-pdf-view-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/pdfviewer/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.pdfviewer.PDFViewer" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-rtf" description="Prepares the RTF Editor for distribution"
+		depends="jar-commons,build-rtf">
+		<jar destfile="${dist}/pm-app-rtf-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/rtf/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.rtf.RTFEditor" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-rtfth" description="Prepares the RTF TH for distribution"
+		depends="jar-commons,build-rtfth">
+		<jar destfile="${dist}/pm-app-rtfth-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/rtfth/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class" value="" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-workflow" description="Prepares the workflow editor for distribution"
+		depends="jar-commons,build-workflow">
+		<jar destfile="${dist}/pm-app-wkf-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/oldworkflow/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.oldworkflow.Wkflow" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-workflow-old" description="Prepares the old workflow editor for distribution"
+		depends="jar-commons,build-workflow-old">
+		<jar destfile="${dist}/pm-app-wkf-old-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/oldworkflow/**
+					images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.oldworkflow.Wkflow" />
+			</manifest>
+		</jar>
+	</target>
+	<target name="jar-workflow-pdf" description="Prepares the workflow PDF editor for distribution"
+		depends="jar-commons,build-workflow-pdf, jar-commons, jar-pdf-viewer">
+		<jar destfile="${dist}/pm-app-wkf-pdf-${pmversion}.jar" basedir="${build}"
+			includes="gov/nist/csd/pm/application/workflow/**
+					   images/**">
+			<manifest>
+				<attribute name="Main-Class"
+					value="gov.nist.csd.pm.application.workflow.WorkflowPDF" />
+			</manifest>
+		</jar>
+	</target>
+	<!-- Remote Debugging Settings -->
+
+	<condition property="debug.connection.settings"
+		value="-Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=8978"
+		else="">
+		<istrue value="${javac.debug}" />
+	</condition>
+
+	<!-- Run Targets depends build-tests, make-dirs -->
+
+	<target name="run-tests-test" depends="build-tests">
+		<java fork="true" classname="tests.workflow.WorkflowModelTest">
+			<classpath>
+				<path refid="tests.run.path" />
+			</classpath>
+		</java>
+	</target>
+
+	<target name="run-tests" depends="build-tests">
+		<junit fork="yes" showoutput="true" printsummary="on"
+			haltonerror="false">
+			<classpath>
+				<path refid="tests.run.path" />
+			</classpath>
+			<test outfile="results" name="tests.MainSuite" haltonfailure="no"
+				haltonerror="no">
+				<formatter type="plain" />
+			</test>
+		</junit>
+	</target>
+
+	<target name="run-all"
+		depends="jar-all, run-server, run-kernel-simulator, run-operating-environment" />
+
+
+	<target name="run-admin" depends="jar-admin">
+		<java fork="true" classname="gov.nist.csd.pm.admin.PmAdmin">
+			<classpath>
+				<pathelement location="${dist}/pm-${pmversion}.jar" />
+				<pathelement path="${java.class.path}" />
+
+			</classpath>
+			<jvmarg value="-Djavax.net.ssl.keyStore=${keystores}/superKeystore" />
+			<jvmarg value="-Djavax.net.ssl.trustStore=${keystores}/clientTruststore" />
+			<jvmarg value="-Xdebug" />
+			<jvmarg
+				value="-agentlib:jdwp=transport=dt_socket,suspend=n,server=y,address=8004" />
+			<arg line="-enginehost steveq -engineport 8080" />
+		</java>
+	</target>
+
+	<target name="run-server" depends="jar-server">
+		<java fork="true" classname="gov.nist.csd.pm.server.PmEngine">
+
+			<classpath>
+				<pathelement location="${dist}/pm-${pmversion}.jar" />
+				<pathelement path="${java.class.path}" />
+			</classpath>
+
+			<jvmarg value="-Djavax.net.ssl.keyStore=${keystores}/serverKeystore" />
+			<jvmarg value="-Djavax.net.ssl.trustStore=${keystores}/serverTruststore" />
+			<jvmarg value="-Xdebug" />
+			<jvmarg
+				value="-agentlib:jdwp=transport=dt_socket,suspend=n,server=y,address=8003" />
+			<arg line="-engineport 8090" />
+
+		</java>
+	</target>
+	<target name="run-kernel-simulator" depends="jar-kernel-simulator">
+		<java fork="true" classname="gov.nist.csd.pm.ksim.KernelSimulator">
+
+			<classpath>
+				<pathelement location="${dist}/pm-ksim-${pmversion}.jar" />
+				<pathelement path="${java.class.path}" />
+
+			</classpath>
+
+			<jvmarg value="-Djavax.net.ssl.keyStore=${keystores}/pmengineKeystore" />
+			<jvmarg value="-Djavax.net.ssl.keyStorePassword=aaaaaa" />
+			<jvmarg value="-Djavax.net.ssl.trustStore=${keystores}/clientTruststore" />
+			<jvmarg value="-Xdebug" />
+			<jvmarg
+				value="-agentlib:jdwp=transport=dt_socket,suspend=n,server=y,address=8002" />
+			<arg line="-enginehost steveq -engineport 8080 -simport 8081 -debug" />
+		</java>
+	</target>
+	<target name="run-operating-environment" depends="jar-operating-environment">
+		<echo>Debug Property set to: ${debug.connection.settings}</echo>
+		<java fork="true" classname="gov.nist.csd.pm.user.SessionManager">
+
+			<classpath>
+				<path refid="operating.environment.runpath" />
+				<pathelement path="${java.class.path}" />
+			</classpath>
+
+			<jvmarg value="-Djavax.net.ssl.keyStore=${keystores}/pmengineKeystore" />
+			<jvmarg value="-Djavax.net.ssl.keyStorePassword=aaaaaa" />
+			<jvmarg value="-Djavax.net.ssl.trustStore=${keystores}/clientTruststore" />
+			<jvmarg value="-Dswing.aatext=true" />
+			<jvmarg value="-Xdebug" />
+			<jvmarg
+				value="-agentlib:jdwp=transport=dt_socket,suspend=n,server=y,address=8000" />
+			<arg line="-simport 8081 -export 8082 -debug" />
+
+		</java>
+	</target>
+	<property name="run.class"
+		value="gov.nist.csd.pm.application.workflow.WorkflowView" />
+	<target name="run-class" depends="jar-all">
+		<echo>Running the class ${run.class}</echo>
+		<java fork="true" classname="${run.class}">
+			<classpath>
+				<path refid="fallback.runpath" />
+				<pathelement path="${java.class.path}" />
+			</classpath>
+			<jvmarg value="-Dswing.aatext=true" />
+			<jvmarg value="-Xdebug" />
+			<jvmarg
+				value="-agentlib:jdwp=transport=dt_socket,suspend=n,server=y,address=8069" />
+		</java>
+	</target>
+
+
+	<property name="main.build.dir" value="build" />
+  <property name="main.src.dir" value="src" />
+  <property name="test.build.dir" value="build\gov\nist\csd\pm\server\dao\MySQL" />
+  <property name="test.src.dir" value="src\gov\nist\csd\pm\server\dao\MySQL" />
+
+  <path id="classpath.base" />
+
+  <path id="classpath.test">
+    <pathelement location="lib/junit-4.8.2.jar" />
+    <pathelement location="lib/hamcrest-core-1.3.jar" />
+    <pathelement location="${main.build.dir}"/>
+		<fileset dir="lib" includes="*.jar"/>
+		<pathelement location="lib"/>
+    <path refid="classpath.base" />
+  </path>
+
+  <target name="test" depends="junit, clean1" />
+
+  <target name="compile">
+    <mkdir dir="${main.build.dir}"/>
+    <javac srcdir="${main.src.dir}" destdir="${main.build.dir}" includeantruntime="false">
+      <classpath refid="classpath.base"/>
+    </javac>
+  </target>
+
+  <target name="build" depends="compile">
+    <mkdir dir="${test.build.dir}"/>
+    <javac srcdir="${test.src.dir}" destdir="${test.build.dir}" includeantruntime="false">
+        <classpath refid="classpath.test"/>
+    </javac>
+    <echo message="Build done" />
+  </target>
+
+  <!-- Test and build all files  -->
+  <!-- To run this: use "ant" (default) or "ant run" -->
+  <target name="junit" depends="clean1">
+    <junit printsummary="on" haltonfailure="no">
+        <classpath>
+          <path refid="classpath.test" />
+          <pathelement location="build"/>
+        </classpath>
+        <formatter type="brief" usefile="false" />
+				<formatter type="xml" />
+        <batchtest todir="test">
+            <fileset dir="src" includes="**/ClientTest.java" />
+        </batchtest>
+    </junit>
+  </target>
+
+  <!-- delete all class files -->
+  <!-- To run this: use "ant clean" -->
+  <target name="clean1">
+    <delete>
+        <fileset dir="test"/>
+    </delete>
+    <echo message="clean done" />
+  </target>
+
+
+
+
+
+
+	<!--<junit printsummary="yes" haltonfailure="no">
+
+		<classpath refid="junit.class.path" />
+
+
+		<classpath location="src\gov\nist\csd\pm\server\dao\MySQL" />
+
+		<test name="gov.nist.csd.pm.server.dao.MySQL.CommonSQLDAOTest"
+			haltonfailure="no" todir="test">
+			<formatter type="plain" />
+			<formatter type="xml" />
+		</test>
+</junit>-->
+
+
+</project>

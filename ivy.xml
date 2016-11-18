@@ -1,0 +1,43 @@
+<!-- 
+This is a dependency spec file for IVY, an automated dependency manager for Java projects.
+It is similar to Maven, but doesn't require us to re-write our build process or stop using Ant 
+just to take advantage of it.
+
+Note:  The source control of Policy Machine does NOT contain the jar files specified here.  They must be 
+downloaded.  This was done so that external dependencies would not have to be maintained manually and so 
+that updating to a higher version of a particular dependencies would be a relatively painless affair.  No
+specific versions are specified anywhere during the build process.  This decoupling is another benefit.  
+
+Also, the initial build of Policy Machine must be done while connected to the internet.  The build file will grab and setup Ivy on the target
+machine and then download all dependencies from the internet.  After this initial setup, builds can be done without
+being connected.
+
+This tool does not relieve us from specifying the locations of OpenOffice on the classpath.  There are restrictions
+regarding the relative location of OpenOffice jars and as a consequence cannot be moved from their installed location.
+
+This file specifies all external dependencies for the policy machine
+
+ -->
+<ivy-module version="2.0" xmlns:e="http://ant.apache.org/ivy/extra">
+    <info organisation="gov.nist.csd" module="policy-machine"/>
+    <dependencies>
+    	<dependency org="junit" name="junit" rev="4.8.2"/>
+        <dependency org="org.apache.pdfbox" name="pdfbox" rev="1.6.0"/>
+        <dependency org="com.google.guava" name="guava" rev="r09"/>
+        <dependency org="com.google.inject" name="guice" rev="3.0"/>
+        <dependency org="net.java.dev.jna" name="jna" rev="3.2.7-pm">
+        	<artifact name="jna" type="jar" e:classifier="platform"/>
+        </dependency>
+        <dependency org="com.miglayout" name="miglayout" rev="3.7.3.1" e:classifier="swing">
+        	<artifact name="miglayout" type="swing" e:classifier="swing" ext="jar"/>
+        </dependency>
+        <dependency org="com.sun.mail" name="javax.mail" rev="1.4.4"/>
+        <dependency org="tanukisoft" name="wrapper" rev="3.2.3"/>
+        <dependency org="colorchooser" name="colorchooser" rev="1.0">
+        	<artifact name="colorchooser" type="jar"/>
+        </dependency>
+        <dependency org="say.swing" name="jfontchooser" rev="1.0.5-pm">
+        	<artifact name="jfontchooser" type="jar"/>
+        </dependency>
+    </dependencies>
+</ivy-module>
