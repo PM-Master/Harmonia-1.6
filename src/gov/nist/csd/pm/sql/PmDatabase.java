@@ -18,7 +18,7 @@ public class PmDatabase {
         System.out.println(System.getProperty("user.dir"));
         ds = new ComboPooledDataSource();
         Properties props = new Properties();
-        String file = "../conf/DB_properties/db_props.properties";
+        String file = "C:/PM/conf/DB_properties/db_props.properties";
         InputStream inputStream = new FileInputStream(new File(file));
         if (inputStream != null) {
             props.load(inputStream);

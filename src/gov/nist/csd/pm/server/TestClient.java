@@ -5,7 +5,7 @@ import java.util.jar.Pack200.Packer;
 
 import gov.nist.csd.pm.common.net.Packet;
 import gov.nist.csd.pm.common.net.PacketException;
-import gov.nist.csd.pm.server.dao.MySQL.CommonSQLDAO;
+import gov.nist.csd.pm.server.dao.MySQLDB.CommonSQLDAO;
 
 /**
  * @author gopi.katwala@nist.gov

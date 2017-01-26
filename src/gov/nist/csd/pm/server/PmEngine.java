@@ -1,7 +1,6 @@
 package gov.nist.csd.pm.server;
 
 import static gov.nist.csd.pm.common.constants.GlobalConstants.*;
-
 import gov.nist.csd.pm.common.application.SSLSocketServer;
 import gov.nist.csd.pm.common.config.ServerConfig;
 import gov.nist.csd.pm.common.constants.GlobalConstants;
@@ -9,8 +8,8 @@ import gov.nist.csd.pm.common.net.Packet;
 import gov.nist.csd.pm.common.net.Server;
 import gov.nist.csd.pm.common.util.swing.DialogUtils;
 //import gov.nist.csd.pm.server.dao.ActiveDirectory.ActiveDirectoryDAO;
-import gov.nist.csd.pm.server.dao.MySQL.CommonSQLDAO;
-import gov.nist.csd.pm.server.dao.MySQL.ObligationDAO;
+import gov.nist.csd.pm.server.dao.MySQLDB.CommonSQLDAO;
+import gov.nist.csd.pm.server.dao.MySQLDB.ObligationDAO;
 import gov.nist.csd.pm.server.graph.DenyManager;
 import gov.nist.csd.pm.server.graph.PmGraph;
 import gov.nist.csd.pm.server.graph.PmGraphManager;

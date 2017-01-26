@@ -165,7 +165,7 @@ DECLARE path_id int;
                                                                                                 (start_node, end_node, 1 );
                                                                 END IF;
                                                 END IF;
-                                                IF get_node_type(end_node) <> 2 THEN -- other than policy class
+                                                IF start_node <> 1 AND get_node_type(end_node) <> 2 THEN  -- other than policy class
                                                                 -- delete connection to connector
                                                                 DELETE FROM assignment WHERE START_NODE_ID = 1 AND END_NODE_ID = end_node AND depth = 1;
                                                 END IF;

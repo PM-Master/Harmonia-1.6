@@ -1,4 +1,4 @@
-package gov.nist.csd.pm.server.dao.MySQL;
+package gov.nist.csd.pm.server.dao.MySQLDB;
 
 import gov.nist.csd.pm.admin.UserEditor;
 import gov.nist.csd.pm.common.config.ServerConfig;
@@ -1462,10 +1462,10 @@ public class CommonSQLDAO{
                 String sClass = object.get(2)!=null? (String) object.get(2):null;
                 Integer include_ascendents = (Integer)object.get(3);
                 String sIncludes = (include_ascendents==0?"NO":"YES");
-                String sOrigName = object.get(4)!=null? (String) object.get(4):null;
-                String sOrigId = object.get(5)!=null? ((Integer) object.get(5)).toString():null;
-                String sHost = object.get(6)!=null? (String) object.get(6):null;
-                String sPath = object.get(7)!=null? (String) object.get(7):null;
+                String sOrigName = object.get(4)!=null? (String) object.get(4):"";
+                String sOrigId = object.get(5)!=null? ((Integer) object.get(5)).toString():"";
+                String sHost = object.get(6)!=null? (String) object.get(6):"";
+                String sPath = object.get(7)!=null? (String) object.get(7):"";
                 if (sClass.equals(PM_CLASS_FILE_NAME)
                         || sClass.equals(PM_CLASS_DIR_NAME)) {
                     res.addItem(ItemType.RESPONSE_TEXT, sName
@@ -1485,8 +1485,8 @@ public class CommonSQLDAO{
                             + PM_ALT_FIELD_DELIM + sId
                             + PM_ALT_FIELD_DELIM + sClass
                             + PM_ALT_FIELD_DELIM + sIncludes
-                            + PM_ALT_FIELD_DELIM + sOrigName
-                            + PM_ALT_FIELD_DELIM + sOrigId);
+                            + PM_ALT_FIELD_DELIM + sOrigName+sHost
+                            + PM_ALT_FIELD_DELIM + sOrigId+sPath);
                 } else if (sClass
                         .equals(PM_CLASS_CLIPBOARD_NAME)) {
                     res.addItem(ItemType.RESPONSE_TEXT, sName
@@ -8754,14 +8754,13 @@ public class CommonSQLDAO{
 
 
             if(sProps != null && sProps.length > 0) {
+                // Add the pc's properties, if any.
                 for(int i = 0; i < sProps.length; i++) {
                     if (!sProps[i].contains(PM_PROP_DELIM)) {
                         errorMessage = "property \"" + sProps[i] + "\" is not formatted correctly: property=value";
                         return null;
                     }
                 }
-            }else {
-                // Add the pc's properties, if any.
                 if (newNodeId != null) insertProperties(sProps, PM_NODE.POL.value, newNodeId);
             }
         } catch (Exception e) {
@@ -15580,7 +15579,7 @@ public class CommonSQLDAO{
 
             // Create a user Node
             Integer newNodeId = createNode(sName, PM_NODE.UATTR.value, sDescr,
-                    sBaseId == null ? null : Integer.valueOf(sBaseId));
+                    sBaseId == null ? 1 : Integer.valueOf(sBaseId));
 
             // Add the attribute's properties, if any.
             if(sProps != null && sProps.length > 0){

@@ -3,11 +3,11 @@ package gov.nist.csd.pm.common.config;
 import gov.nist.csd.pm.server.PmEngine;
 //import gov.nist.csd.pm.server.dao.ActiveDirectory.ADGraph.ADGraphManager;
 import gov.nist.csd.pm.server.dao.ActiveDirectory.ActiveDirectoryDAO;
-import gov.nist.csd.pm.server.dao.MySQL.CommonSQLDAO;
 //import gov.nist.csd.pm.server.dao.MySQL.ObligationDAO;
 
 //import gov.nist.csd.pm.server.dao.MySQL.ObligationDAO;
-import gov.nist.csd.pm.server.dao.MySQL.ObligationDAO;
+import gov.nist.csd.pm.server.dao.MySQLDB.CommonSQLDAO;
+import gov.nist.csd.pm.server.dao.MySQLDB.ObligationDAO;
 import gov.nist.csd.pm.server.graph.DenyManager;
 import gov.nist.csd.pm.server.graph.PmGraphManager;
 import gov.nist.csd.pm.sql.PmDatabase;

@@ -105,7 +105,7 @@ private String pcToEditId;
  */
 private GridBagConstraints constraints = new GridBagConstraints();
 
-  public PolicyClassEditor(PmAdmin tool, SSLSocketClient sslClient) {
+	public PolicyClassEditor(PmAdmin tool, SSLSocketClient sslClient) {
     super(tool, true);  // modal
 
     this.tool = tool;
@@ -182,17 +182,15 @@ private GridBagConstraints constraints = new GridBagConstraints();
     // The button pane
     JPanel buttonPane = new JPanel();
     buttonPane.setLayout(new GridBagLayout());
-
     okButton = new JButton("Add policy");
     okButton.setActionCommand("ok");
     okButton.addActionListener(this);
-
     closeButton = new JButton("Close");
     closeButton.setActionCommand("close");
     closeButton.addActionListener(this);
 
     constraints.insets = new Insets(0, 10, 0, 0);
-    addComp(buttonPane, okButton, 1, 0, 1, 1);
+   	addComp(buttonPane, okButton, 1, 0, 1, 1);
     addComp(buttonPane, closeButton, 2, 0, 1, 1);
     buttonPane.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
 
@@ -234,8 +232,8 @@ private GridBagConstraints constraints = new GridBagConstraints();
 
   public void prepareForAdd() {
     setTitle("Add Policy Class");    
-    okButton.setText("Add policy");
     editingMode = false;
+   	okButton.setText("Add policy");
     pcNameField.setText(null);
     pcNameField.requestFocus();
     pcDescrField.setText(null);
@@ -251,8 +249,8 @@ private GridBagConstraints constraints = new GridBagConstraints();
   // The argument sId is the id of the selected pc.
   public void prepareForEdit(String sId) {
     setTitle("Edit Policy Class");
-    okButton.setText("OK");
     editingMode = true;
+   	okButton.setVisible(false);
     pcToEditId = sId;
     
     Packet res = null;

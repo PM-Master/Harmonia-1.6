@@ -1,4 +1,4 @@
-package gov.nist.csd.pm.server.dao.MySQL;
+package gov.nist.csd.pm.server.dao.MySQLDB;
 
 import gov.nist.csd.pm.common.config.ServerConfig;
 import gov.nist.csd.pm.common.constants.GlobalConstants;
