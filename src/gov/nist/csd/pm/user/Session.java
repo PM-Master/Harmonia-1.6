@@ -70,7 +70,7 @@ public class Session extends JDialog implements ActionListener, TreeExpansionLis
 	public static final String PM_NODE_OPSETA = "S";
 	public static final String PM_NODE_CONN = "c";
 	public static final String PM_NODE_CONNA = "C";
-	public static final String PM_OBJ = "ob";
+	public static final String PM_OBJ = "o"; // Gopi - replaced "ob" with "o" as type name changed for object
 	public static final String PM_ARC = "r";
 	public static final String PM_CLASS_FILE_NAME = "File";
 	public static final String PM_CLASS_DIR_NAME = "Directory";

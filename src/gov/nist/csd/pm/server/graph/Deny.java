@@ -14,21 +14,62 @@ public class Deny {
 
     private String id;
     private String name;
-    private String deny_type;
+    private String denyType;
+    private int processId;
+    private int userId;
+    private int sessionId;
     private boolean intersection;
     private HashSet<DenyObject> objects;
     private HashSet<String> ops;
 
     public Deny(){}
 
-    public Deny(String id, String name, String deny_type, boolean intersection,
-                HashSet<DenyObject> objects, HashSet<String> ops) {
+    public Deny(String id, String name, String denyType, int processId, int userId,
+                boolean intersection, HashSet<DenyObject> objects, HashSet<String> ops) {
         this.id = id;
         this.name = name;
-        this.deny_type = deny_type;
+        this.denyType = denyType;
+        this.processId = processId;
+        this.userId = userId;
         this.intersection = intersection;
         this.objects = objects;
         this.ops = ops;
+    }
+
+    public Deny (String name, String type, boolean intersection){
+        this.name = name;
+        this.denyType = type;
+        this.intersection = intersection;
+        this.sessionId = -1;
+        this.processId = -1;
+        this.userId = -1;
+        this.objects = new HashSet<>();
+        this.ops = new HashSet<>();
+    }
+
+    public Deny session(int sessId){
+        this.sessionId = sessId;
+        return this;
+    }
+
+    public Deny process(int procId){
+        this.processId = procId;
+        return this;
+    }
+
+    public Deny user(int userId){
+        this.userId = userId;
+        return this;
+    }
+
+    public Deny objects(HashSet<DenyObject> objects){
+        this.objects = objects;
+        return this;
+    }
+
+    public Deny operations(HashSet<String> ops){
+        this.ops = ops;
+        return this;
     }
 
     public String getId() {
@@ -48,11 +89,31 @@ public class Deny {
     }
 
     public String getDenyType() {
-        return deny_type;
+        return denyType;
     }
 
-    public void setDenyType(String deny_type) {
-        this.deny_type = deny_type;
+    public void setDenyType(String denyType) {
+        this.denyType = denyType;
+    }
+
+    public int getSessionId(){
+        return sessionId;
+    }
+
+    public int getProcessId() {
+        return processId;
+    }
+
+    public void setProcessId(int processId) {
+        this.processId = processId;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
     }
 
     public boolean isIntersection() {
@@ -98,5 +159,10 @@ public class Deny {
         JsonElement je = jp.parse(s);
         String json = gson.toJson(je);
         return json;
+    }
+
+    public static Deny fromJson(String deny){
+        Gson gson = new Gson();
+        return gson.fromJson(deny, Deny.class);
     }
 }

@@ -17,7 +17,7 @@ set PM_ROOT=C:\PM
 
 set MY_KEYSTORE=pmserverKeystore
 
-set MY_TRUSTSTORE=serverTruststore
+set MY_TRUSTSTORE=pmserverTruststore
 
 set ENGINE_PORT=8080
 

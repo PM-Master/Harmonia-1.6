@@ -1,72 +1,48 @@
 package gov.nist.csd.pm.application.schema.tableeditor;
 
-import java.awt.BorderLayout;
-
-import static gov.nist.csd.pm.common.util.Generators.generateRandomName;
+import gov.nist.csd.pm.application.schema.importing.Row;
+import gov.nist.csd.pm.application.schema.importing.Table;
+import gov.nist.csd.pm.application.schema.utilities.Utilities;
+import gov.nist.csd.pm.common.application.SSLSocketClient;
+import gov.nist.csd.pm.common.application.SysCaller;
+import gov.nist.csd.pm.common.application.SysCallerImpl;
+import gov.nist.csd.pm.common.browser.*;
+import gov.nist.csd.pm.common.constants.GlobalConstants;
+import gov.nist.csd.pm.common.constants.PM_NODE;
+import gov.nist.csd.pm.common.net.Packet;
+import gov.nist.csd.pm.common.net.PacketException;
+import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.statement.delete.Delete;
+import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.update.Update;
 
 import javax.swing.*;
-import javax.swing.SwingWorker;
 import javax.swing.border.BevelBorder;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
-
-import java.awt.FlowLayout;
-
 import javax.swing.border.TitledBorder;
-import javax.swing.event.TableModelListener;
-
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
-import java.io.ByteArrayOutputStream;
-
-
-import java.awt.Dimension;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
-import java.util.Vector;
-import java.util.Map.Entry;
-import java.util.concurrent.ExecutionException;
-import java.util.regex.PatternSyntaxException;
-
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
-
-import gov.nist.csd.pm.application.schema.utilities.Utilities;
-import gov.nist.csd.pm.common.application.SSLSocketClient;
-import gov.nist.csd.pm.common.application.SysCaller;
-import gov.nist.csd.pm.common.application.SysCallerImpl;
-import gov.nist.csd.pm.common.browser.PmGraph;
-import gov.nist.csd.pm.common.browser.PmGraphDirection;
-import gov.nist.csd.pm.common.browser.PmGraphType;
-import gov.nist.csd.pm.common.browser.PmNode;
-import gov.nist.csd.pm.common.browser.PmNodeChildDelegate;
-import gov.nist.csd.pm.common.browser.PmNodeType;
-import gov.nist.csd.pm.common.constants.GlobalConstants;
-import gov.nist.csd.pm.common.constants.PM_NODE;
-import gov.nist.csd.pm.common.net.Packet;
-import gov.nist.csd.pm.common.net.PacketException;
-import gov.nist.csd.pm.user.*;
-//import java.nio.file.*;
-
+import java.awt.*;
+import java.awt.event.*;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
+import java.sql.*;
+import java.util.*;
+import java.util.List;
+import java.util.regex.PatternSyntaxException;
+
+import static gov.nist.csd.pm.common.constants.GlobalConstants.PM_FIELD_DELIM;
 
 /**
  * allow user to view multiple tables
@@ -78,6 +54,17 @@ import java.io.PrintWriter;
  */
 public class TableEditor extends JFrame {
 
+    private static String[] sqlExamples = new String[]{
+            "select name,ssn,phone,salary from employees",
+            "select name,ssn, phone,salary from employees where ssn like '%'",
+            "select name, phone from employees where ssn like '%'"
+    };
+    private static final int DEFAULT_NUM_ROWS = 10;
+    private JButton execQuery;
+    private JComboBox sqlList;
+    private int numRows = DEFAULT_NUM_ROWS;
+    private JSplitPane splitPane;
+    private JPanel panel;
     private JPanel panel_4;
     private JPanel contentPane;
     private JTextField searchValueField;
@@ -105,7 +92,19 @@ public class TableEditor extends JFrame {
     private Template activeTemplate;
     private List<Template> templates;
     private String pcName;
-    //private WatchService watcher;
+
+    private JTextField hostField;
+    private JTextField portField;
+    private JTextField userField;
+    private JTextField passField;
+    private JTextField dbNameField;
+
+    private JTextField sqlField;
+    private boolean db;
+
+    private String tableName;
+    private String key;
+    private ArrayList<String> reqColumns;
 
     public TableEditor(String sessionId, int nSimPort, String sProcId, boolean bDebug) {
         setTitle("Table Editor");
@@ -122,16 +121,6 @@ public class TableEditor extends JFrame {
         new ArrayList<ArrayList<String>>();
         templates = new ArrayList<Template>();
         util = new Utilities(sessionId, sProcessId, nSimulatorPort, bDebug);
-        /*try {
-            watcher = FileSystems.getDefault().newWatchService();
-            Path dir = Paths.get("C:/PMWorkArea");
-            dir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE,
-                    StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }*/
 
         addWindowListener(new WindowAdapter() {
 
@@ -161,28 +150,89 @@ public class TableEditor extends JFrame {
 
         contentPane = new JPanel();
         contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
-        contentPane.setLayout(new BorderLayout(0, 0));
+        contentPane.setLayout(new BorderLayout(5, 5));
         setContentPane(contentPane);
 
-        JSplitPane splitPane = new JSplitPane();
+        splitPane = new JSplitPane();
 
-        JPanel panel = new JPanel();
+        panel = new JPanel();
         panel.setBorder(new TitledBorder(null, "Schema", TitledBorder.LEADING, TitledBorder.TOP, null, null));
         splitPane.setLeftComponent(panel);
         //getContentPane().add(panel, BorderLayout.WEST);
-        panel.setLayout(new BorderLayout(0, 0));
+        panel.setLayout(new BorderLayout(5, 5));
 
 
         scrollPane = new JScrollPane();
         panel.add(scrollPane, BorderLayout.CENTER);
 
-        JButton btnResetSchemaView = new JButton("Reset Schema View");
+
+        JPanel leftCompButtonPanel = new JPanel();
+        leftCompButtonPanel.setLayout(new BorderLayout(5, 5));
+
+        JButton btnResetSchemaView = new JButton("Refresh");
         btnResetSchemaView.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 resetSchemaView();
             }
         });
-        panel.add(btnResetSchemaView, BorderLayout.SOUTH);
+        leftCompButtonPanel.add(btnResetSchemaView, BorderLayout.WEST);
+
+
+        JButton btnOpenRecords = new JButton("Open Records");
+        btnOpenRecords.addActionListener(e -> {
+            //TODO add check for multiple templates and then ask which one they would like to see
+            List<String> recs = new ArrayList<>();
+            String inClause = " in (";
+            String tempName = "";
+            String tempId = "";
+            List<String> columns = new ArrayList<>();
+            List<PmNode> children = lastSelNode.getChildren();
+            for(PmNode n : children){
+                String id = n.getId();
+                String name = n.getName();
+                if(util.isRecord(id)){
+                    if(columns.isEmpty()) {
+                        Packet p = sysCaller.getRecordInfo(id);
+                        String line = p.getStringValue(1);
+                        String[] pieces = line.split(PM_FIELD_DELIM);
+                        tempName = pieces[0];
+                        tableName = tempName;
+                        tempId = pieces[1];
+
+                        p = sysCaller.getTemplateInfo(tempId);
+
+                        String conts = p.getStringValue(1);
+                        pieces = conts.split(PM_FIELD_DELIM);
+                        for (String s : pieces) {
+                            columns.add(sysCaller.getNameOfEntityWithIdAndType(s, PM_NODE.OATTR.value));
+                        }
+
+                        String keys = p.getStringValue(2);
+                        pieces = keys.split(PM_FIELD_DELIM);
+                        for (String s : pieces) {
+                            columns.remove(s);
+                            columns.add(0,s);
+                        }
+
+                        System.out.println(columns.toString());
+                    }
+                    //columns = columns.substring(0, columns.length()-1);
+                    inClause += "'" + name + "',";
+                }
+            }
+            String queryColumns = columns.toString().replaceAll("\\[", "").replace("]", "");
+            inClause = inClause.substring(0, inClause.length()-1);
+            inClause += ");";
+
+            String sql = "select " + queryColumns + " from " + tempName + " where id " + inClause;
+            sqlField.setText(sql);
+            select(sql);
+            rows = recs;
+            numRows = DEFAULT_NUM_ROWS;
+            //updateTable(tempName);
+        });
+        leftCompButtonPanel.add(btnOpenRecords, BorderLayout.EAST);
+        panel.add(leftCompButtonPanel, BorderLayout.SOUTH);
 
         if(!openSchema(true)){
             return;
@@ -197,51 +247,58 @@ public class TableEditor extends JFrame {
         resetSchemaView();
         sorter = new TableRowSorter<TableModel>(model);
 
-        //JPopupMenu popmenu = new JPopupMenu();
-		/*JMenuItem view = new JMenuItem("Edit Field");
-		view.addActionListener(new ActionListener(){
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				editField();
-			}
-		});
-		popmenu.add(view);*/
-
         JMenuItem view = new JMenuItem("Open");
-        view.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                editField();
-            }
-        });
-        //popmenu.add(view);
+        view.addActionListener(e -> editField());
 
         JPanel panel_5 = new JPanel();
         contentPane.add(panel_5, BorderLayout.CENTER);
-        panel_5.setLayout(new BorderLayout(0, 0));
+        panel_5.setLayout(new BorderLayout(5, 5));
 
         JPanel panel_1 = new JPanel();
         panel_5.add(panel_1);
-        panel_1.setBorder(
-                new CompoundBorder(
-                        new TitledBorder("Master View"),
-                        BorderFactory.createBevelBorder(BevelBorder.LOWERED)
-                )
-        );
-        panel_1.setLayout(new BorderLayout(0, 0));
+        panel_1.setBorder(BorderFactory.createBevelBorder(BevelBorder.LOWERED));
+        panel_1.setLayout(new BorderLayout(5, 5));
+
+        JPanel sqlPanel = new JPanel();
+        sqlPanel.setBorder(new TitledBorder(null, "Query", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        sqlPanel.add(new JLabel("Query:"));
+        sqlField = new JTextField(40);
+        sqlField.setText("select name, phone,ssn, salary from employees limit 50");
+        sqlList = new JComboBox(sqlExamples);
+        sqlList.setEditable(true);
+        sqlPanel.add(sqlList);
+
+        execQuery = new JButton("Execute");
+        execQuery.addActionListener(evt -> {
+            String sql = (String) sqlList.getSelectedItem();//sqlField.getText();
+            try {
+                net.sf.jsqlparser.statement.Statement statement = CCJSqlParserUtil.parse(sql);
+
+                if (statement instanceof Select) {
+                    select(sql);
+                } else if (statement instanceof Insert) {
+                } else if (statement instanceof Update) {
+                    Update update = (Update) statement;
+                    update(update);
+                } else if (statement instanceof Delete) {
+                }
+            } catch (JSQLParserException e) {
+                e.printStackTrace();
+            }
+        });
+        sqlPanel.add(execQuery);
 
         JPanel panel_2 = new JPanel();
-        panel_1.add(panel_2, BorderLayout.SOUTH);
+        //panel_1.add(panel_2, BorderLayout.SOUTH);
 
         JButton btnAddEntry = new JButton("Add Record");
         btnAddEntry.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                if(activeTemplate != null){
+                if (activeTemplate != null) {
                     panel_4.setVisible(true);
                     addEntry();
-                }else{
+                } else {
                     JOptionPane.showMessageDialog(TableEditor.this, "A table must be open in order to add a record");
-                    return;
                 }
             }
         });
@@ -252,44 +309,46 @@ public class TableEditor extends JFrame {
                 loadModelData();
             }
         });
-        panel_2.add(btnRefreshTable);
-        panel_2.add(btnAddEntry);
+        //panel_2.add(btnRefreshTable);
+        //panel_2.add(btnAddEntry);
+        panel_2.add(new JLabel("Fetch the next "));
 
-        JButton btnEditEntry = new JButton("Edit Record");
-        btnEditEntry.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                //editEntry();
+        JTextField limitField = new JTextField(5);
+        limitField.setText("10");
+        panel_2.add(limitField);
+
+        panel_2.add(new JLabel(" rows"));
+
+        JButton goButton = new JButton("GO");
+        goButton.addActionListener(e -> {
+            try {
+                SwingWorker<String, String> worker = new SwingWorker<String, String>() {
+                    @Override
+                    protected String doInBackground() throws Exception {
+                        numRows += Integer.valueOf(limitField.getText());
+                        updateTable(tableName);
+
+                        return null;
+                    }
+                };
+                worker.execute();
+            }catch(Exception ex){
+                ex.printStackTrace();
             }
+            //updateTable();
         });
-        //panel_2.add(btnEditEntry);
-
-        JButton btnDeleteEntry = new JButton("Delete Record");
-        btnDeleteEntry.addActionListener(new ActionListener(){
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-
-            }
-
-        });
-        //panel_2.add(btnDeleteEntry);
+        panel_2.add(goButton);
 
         JScrollPane scrollPane_1 = new JScrollPane();
         panel_1.add(scrollPane_1, BorderLayout.CENTER);
 
         JPanel panel_3 = new JPanel();
         panel_3.setBorder(new TitledBorder(null, "Search", TitledBorder.LEADING, TitledBorder.TOP, null, null));
-        panel_1.add(panel_3, BorderLayout.NORTH);
+        panel_1.add(sqlPanel, BorderLayout.NORTH);
         panel_3.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
 
-        JLabel lblColumnName = new JLabel("Column Name:");
-        panel_3.add(lblColumnName);
 
-        searchColField = new JTextField();
-        panel_3.add(searchColField);
-        searchColField.setColumns(10);
-
-        JLabel lblValue = new JLabel("Value:");
+        JLabel lblValue = new JLabel("Query:");
         panel_3.add(lblValue);
 
         searchValueField = new JTextField();
@@ -297,7 +356,7 @@ public class TableEditor extends JFrame {
         searchValueField.setColumns(10);
 
         JButton btnSearch = new JButton("Search");
-        btnSearch.addActionListener(new ActionListener(){
+        btnSearch.addActionListener(new ActionListener() {
 
             @Override
             public void actionPerformed(ActionEvent arg0) {
@@ -320,45 +379,37 @@ public class TableEditor extends JFrame {
         });
         panel_3.add(btnResetSearch);
 
+
         table = new JTable(model);
         table.setRowSorter(sorter);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-        //table.setAutoCreateRowSorter(true);
-        table.getTableHeader().setReorderingAllowed(false);
+        table.getTableHeader().setReorderingAllowed(true);
         table.setPreferredScrollableViewportSize(table.getPreferredSize());
         table.addMouseListener(new MouseListener() {
-
             @Override
-            public void mouseClicked(MouseEvent e) {
-            }
-
+            public void mouseClicked(MouseEvent e) {}
             @Override
             public void mousePressed(MouseEvent e) {
-                panel_4.setVisible(true);
-                String recName = (String) model.getValueAt(table.convertRowIndexToModel(table.getSelectedRow()), 0);
-                List<String> comps = getCompsForRecord(recName);
-                Collections.sort(comps);
-                System.out.println("Opening records with comps: " + comps);
-                RecordEditor editor = new RecordEditor(TableEditor.this, sysCaller,
-                        recName, null, comps, util);
-                scrollPane_2.setViewportView(editor);
+                if(!db) {
+                    panel_4.setVisible(true);
+                    String recName = (String) model.getValueAt(table.convertRowIndexToModel(table.getSelectedRow()), 0);
+                    List<String> comps = getCompsForRecord(recName);
+                    Collections.sort(comps);
+                    System.out.println("Opening records with comps: " + comps);
+                    RecordEditor editor = new RecordEditor(TableEditor.this, sysCaller,
+                            recName, null, comps, util);
+                    scrollPane_2.setViewportView(editor);
+                }
             }
 
             @Override
-            public void mouseReleased(MouseEvent e) {
-            }
-
+            public void mouseReleased(MouseEvent e) {}
             @Override
-            public void mouseEntered(MouseEvent e) {
-            }
-
+            public void mouseEntered(MouseEvent e) {}
             @Override
-            public void mouseExited(MouseEvent e) {
-            }
-
+            public void mouseExited(MouseEvent e) {}
         });
         scrollPane_1.setViewportView(table);
-        //table.setComponentPopupMenu(popmenu);
 
         panel_4 = new JPanel();
         panel_4.setVisible(false);
@@ -370,7 +421,7 @@ public class TableEditor extends JFrame {
                 )
         );
         panel_4.setPreferredSize(new Dimension(200, 240));
-        panel_4.setLayout(new BorderLayout(0, 0));
+        panel_4.setLayout(new BorderLayout(5, 5));
 
         scrollPane_2 = new JScrollPane();
         panel_4.add(scrollPane_2, BorderLayout.CENTER);
@@ -388,10 +439,546 @@ public class TableEditor extends JFrame {
 
         contentPane.add(splitPane, BorderLayout.CENTER);
 
-        //loadModelData();
-
         setLocationRelativeTo(null);
         setVisible(true);
+    }
+
+    private void updateTable(String tableName){
+        try {
+
+            long start = System.nanoTime();
+            List<String> allColumnNames = getTableColumns(tableName);//if null get all the columns of the table
+            Hashtable<String, List<String>> results = new Hashtable<>();
+            Hashtable<List<String>, List<String>> subsets = new Hashtable<>();
+
+            for (String rowName : rows) {
+                String rowId = sysCaller.getIdOfEntityWithNameAndType(rowName, PM_NODE.OATTR.value);
+
+                Packet pack = util.genCmd("getMellMembersOf", rowName, rowId, "b", "ac");
+                if (pack.isEmpty()) {
+                    continue;
+                }
+
+                List<String> pos = new ArrayList<>();
+                for (int i = 0; i < pack.size(); i++) {
+                    pos.add(pack.getStringValue(i).split(PM_FIELD_DELIM)[1]);
+                }
+
+                List<String> okColumns = new ArrayList<String>();
+
+                Vector<Object> row = new Vector<>();
+                row.add(rowName);
+
+                for (int i = 0; i < reqColumns.size(); i++) {
+                    String column = reqColumns.get(i);
+                    String columnId = sysCaller.getIdOfEntityWithNameAndType(column, PM_NODE.OATTR.value);
+                    String inters = util.genCmd("getIntersection", columnId, rowId).getStringValue(0);
+
+                    String sql = (String) sqlList.getSelectedItem();//sqlField.getText();
+                    String where = "";
+                    try {
+                        where = sql.substring(sql.indexOf(" where "));
+                    } catch (Exception e) {
+                    }
+
+                    Collections.sort(pos);
+                    if (Collections.binarySearch(pos, inters) >= 0) {
+                        //value = (String) t.getRow(rowName).getCell(i - 1);
+                        okColumns.add(columnId);
+                    } else {
+                        //check if inaccessible column is in where clause and columns
+                        if (where.contains(reqColumns.get(i))) {
+                            row.clear();
+                            break;
+                        }
+                    }
+
+                    try {
+                        //check if inaccessible column is in where clause and not in columns
+                        String[] wherePieces = where.split(" |=");
+                        boolean cantRead = false;
+                        for (String p : wherePieces) {
+                            if (allColumnNames.contains(p.trim())) {
+                                column = p;
+                                columnId = sysCaller.getIdOfEntityWithNameAndType(column, PM_NODE.OATTR.value);
+                                inters = util.genCmd("getIntersection", columnId, rowId).getStringValue(0);
+                                if (Collections.binarySearch(pos, inters) < 0) {
+                                    row.clear();
+                                    cantRead = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (cantRead) {
+                            break;
+                        }
+                    } catch (Exception e) {
+                    }
+                    //row.add(value);
+                }
+                if (okColumns.size()>1) {
+                    //data.add(row);
+                    System.out.println("Adding ok columns: " + okColumns);
+                    results.put(rowName, okColumns);
+                }
+            }
+            for (String rName : results.keySet()) {
+                List<String> columns = results.get(rName);
+                List<String> rows = subsets.get(columns);
+                if (rows != null && !rows.contains(rName)) {
+                    rows.add(rName);
+                }else{
+                    rows = new ArrayList<>();
+                    rows.add(rName);
+                }
+                subsets.put(columns, rows);
+            }
+
+            Vector<String> columnHeaders = new Vector<String>();
+            for(List<String> sub : subsets.keySet()){
+                for(String s : sub){
+                    String cName = sysCaller.getNameOfEntityWithIdAndType(s, PM_NODE.OATTR.value);
+                    if(!columnHeaders.contains(cName) && reqColumns.contains(cName)){
+                        columnHeaders.add(cName);
+                    }
+                }
+            }
+            ((DefaultTableModel) model).setColumnIdentifiers(columnHeaders);
+            setTableColumnSize();
+
+            List<List<String>> subsetKeys = new ArrayList<>();
+            Iterator<List<String>> iter = subsets.keySet().iterator();
+            while(iter.hasNext()){
+                subsetKeys.add(iter.next());
+            }
+            for(int i = 0; i < subsetKeys.size(); i++){
+                List<String> sub = subsetKeys.get(i);
+                List<String> subColumns = new ArrayList<>(columnHeaders);
+                List<String> subNames = new ArrayList<String>();
+                for(String s : sub){
+                    subNames.add(sysCaller.getNameOfEntityWithIdAndType(s, PM_NODE.OATTR.value));
+                }
+                List<String> subRows = subsets.get(sub);
+
+                for(int j = 0; j < subColumns.size(); j++){
+                    if(!subNames.contains(subColumns.get(j))){
+                        subColumns.set(j, "null");
+                    }
+                }
+
+                subsetKeys.remove(i);
+                i--;
+                subsets.remove(sub);
+                subsets.put(subColumns, subRows);
+            }
+
+            String union = "";
+            for (List<String> s : subsets.keySet()) {
+                String subsetCols = "";
+                for (String col : s) {
+                    subsetCols += col + ", ";
+                }
+                subsetCols = subsetCols.substring(0, subsetCols.length() - 2);
+                List<String> rows = subsets.get(s);
+                String in = "( ";
+                for (String id : rows) {
+                    in += "'" + id + "', ";
+                }
+                in = in.substring(0, in.length() - 2) + " ) ";
+
+                String newSQL = "(SELECT " + subsetCols + " FROM " + tableName + " WHERE " + key + " IN " + in;
+                union += newSQL + ") UNION ";
+            }
+
+            union = union.substring(0, union.length()-7);
+
+            Statement stmt = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            stmt.setFetchSize(Integer.MIN_VALUE);
+            ResultSet rs = stmt.executeQuery(union);
+            ResultSetMetaData meta = rs.getMetaData();
+            int numCols = meta.getColumnCount();
+            //textArea.append("\n");
+            while (rs.next()) {
+                Row r = new Row();
+                String rId = rs.getString(1);
+                r.setRowId(rId);
+
+                Vector<Object> rowData = new Vector<>();
+                for (int i = 0; i < numCols; i++) {
+                    String value = rs.getString(i + 1);
+                    rowData.add(value);
+                }
+                r.setData(rowData);
+                t.addRow(r);
+                if(rowData.size() > 1){
+                    addRow(rowData);
+                }
+            }
+
+            Long end1 = System.nanoTime();
+            System.out.println("TOTAL TIME: " + ((end1 - start) / 1000000000.0f));
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void updateTableJosh(String tableName) {
+        long s = System.nanoTime();
+        List<String> allColumnNames = getTableColumns(tableName);//if null get all the columns of the table
+
+        int rowCount = 0;
+        int curRowCount = table.getRowCount();
+        int end = numRows;
+
+        Hashtable<String, List<String>> results = new Hashtable<>();
+        Hashtable<List<String>, List<String>> subsets = new Hashtable<>();
+
+        for (int x = curRowCount; x < end; x++) {
+            String rowName = rows.get(x);
+            String rowId = sysCaller.getIdOfEntityWithNameAndType(rowName, PM_NODE.OATTR.value);
+
+            Packet pack = util.genCmd("getMellMembersOf", rowName, rowId, "b", "ac");
+            if(pack.isEmpty()){
+                continue;
+            }
+
+            List<String> pos = new ArrayList<>();
+            for (int i = 0; i < pack.size(); i++) {
+                pos.add(pack.getStringValue(i).split(PM_FIELD_DELIM)[1]);
+            }
+
+            Vector<Object> row = new Vector<>();
+            row.add(rowName);
+            for (int i = 1; i < columns.size(); i++) {
+                String column = columns.get(i);
+                String columnId = sysCaller.getIdOfEntityWithNameAndType(column, PM_NODE.OATTR.value);
+                String inters = util.genCmd("getIntersection", columnId, rowId).getStringValue(0);
+
+                String sql = (String) sqlList.getSelectedItem();//sqlField.getText();
+                String where = "";
+                try {
+                    where = sql.substring(sql.indexOf(" where "));
+                } catch (Exception e) {
+                }
+
+                String value = "";
+                Collections.sort(pos);
+                if (Collections.binarySearch(pos, inters) >= 0) {
+                    value = (String) t.getRow(rowName).getCell(i - 1);
+                } else {
+                    //check if inaccessible column is in where clause and columns
+                    if (where.contains(columns.get(i))) {
+                        row.clear();
+                        break;
+                    }
+                }
+
+                try {
+                    //check if inaccessible column is in where clause and not in columns
+                    String[] wherePieces = where.split(" |=");
+                    boolean cantRead = false;
+                    for (String p : wherePieces) {
+                        if (allColumnNames.contains(p.trim())) {
+                            column = p;
+                            columnId = sysCaller.getIdOfEntityWithNameAndType(column, PM_NODE.OATTR.value);
+                            inters = util.genCmd("getIntersection", columnId, rowId).getStringValue(0);
+                            if (Collections.binarySearch(pos, inters) < 0) {
+                                row.clear();
+                                cantRead = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (cantRead) {
+                        break;
+                    }
+                }catch(Exception e){}
+                row.add(value);
+            }
+            if (row.size()>1) {
+                //data.add(row);
+                System.out.println("Adding row: " + row);
+                if (rowCount < numRows) {
+                    addRow(row);
+                    rowCount++;
+                }
+            }else{
+                end++;
+            }
+            if(x==rows.size()-1){
+                break;
+            }
+        }
+        Long e = System.nanoTime();
+        System.out.println("TOTAL TIME: " + ((e - s) / 1000000000.0f));
+    }
+
+    private void addRow(Vector<Object> row){
+        SwingWorker<String, String> worker = new SwingWorker<String, String>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                ((DefaultTableModel) model).addRow(row);
+                return null;
+            }
+        };
+        worker.execute();
+    }
+
+
+    private Table t;
+    private List<String> rows = new ArrayList<>();
+    private List<String> columns = new ArrayList<>();
+
+    private List<String> getTableColumns(String tableName){
+        List<String> columns = new ArrayList<>();
+        try {
+            PreparedStatement ps = conn.prepareStatement("show full tables where Table_Type = 'BASE TABLE'");
+            ResultSet rs = ps.executeQuery();
+            String key = "";
+            if (rs != null) {
+                while (rs.next()) {
+                    //textArea.append("tableName: " + tableName);
+                    PreparedStatement ps2 = conn.prepareStatement("SELECT column_name from information_schema.columns\n" +
+                            "where table_schema=DATABASE()\n" +
+                            "and table_name = '" + tableName + "'");
+                    ResultSet rs2 = ps2.executeQuery();
+                    while (rs2.next()) {
+                        columns.add(rs2.getString(1));
+                    }
+                }
+            }
+        }catch(Exception e){
+        }
+        return columns;
+    }
+
+    /**
+     * Need to be able to write to the columns and read anything in the where class
+     * @param update
+     */
+    private void update(Update update){
+        SwingWorker<String, String> worker = new SwingWorker<String, String>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                try {
+                    columns.clear();
+                    data.clear();
+                    numRows = DEFAULT_NUM_ROWS;
+                    ((DefaultTableModel) model).setRowCount(0);
+
+                    Statement stmt = conn.createStatement();
+                    stmt.executeUpdate("use " + pcName);
+
+                    PreparedStatement ps2 = conn.prepareStatement("SELECT k.COLUMN_NAME\n" +
+                            "FROM information_schema.table_constraints t\n" +
+                            "LEFT JOIN information_schema.key_column_usage k\n" +
+                            "USING(constraint_name,table_schema,table_name)\n" +
+                            "WHERE t.constraint_type='PRIMARY KEY'\n" +
+                            "    AND t.table_schema=DATABASE()\n" +
+                            "    AND t.table_name='" + tableName + "';");
+                    ResultSet rs2 = ps2.executeQuery();
+                    List<String> keys = new ArrayList<>();
+                    if (rs2 == null) {
+                        JOptionPane.showMessageDialog(null, "Error", "Table does not have a Primary Key.\nThis tool requires the table to have a Primary Key.", JOptionPane.ERROR_MESSAGE);
+                        return null;
+                    } else {
+                        while (rs2.next()) {
+                            keys.add(rs2.getString(1));
+                        }
+                    }
+
+                    String selectCols = "";
+                    for(int i = 0; i < keys.size(); i++){
+                        if(i == 0){
+                            selectCols += keys.get(i);
+                        }else{
+                            selectCols += ", " + keys.get(i);
+                        }
+                    }
+
+                    for(Column c : update.getColumns()){
+                        selectCols += ", " + c.getColumnName();
+                    }
+
+                    String select = "select " + selectCols + " from " + tableName + " " + update.getWhere().toString();
+                    System.out.println(select);
+
+
+                    /*Statement sqlStmt = conn.createStatement();
+                    ResultSet rs = sqlStmt.executeQuery(select);
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int numCols = meta.getColumnCount();
+                    List<String> rowNames = new ArrayList<>();
+                    while (rs.next()) {
+                        String name = (String) rs.getObject(1);
+                        for (int i = 2; i <= numCols; i++) {
+                            if (rs.getObject(i) != null) {
+                                name += rs.getObject(i);
+                            }
+                        }
+                        rowNames.add(name);
+                    }*/
+
+                    Table t = new Table();
+                    t.setTable(tableName);
+                    //t.setKeys(key);
+                    //t.setColumns(finalCols.split(","));
+
+
+                    stmt = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    stmt.setFetchSize(Integer.MIN_VALUE);
+                    ResultSet rs = stmt.executeQuery(select);
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int numCols = meta.getColumnCount();
+                    List<String> rowIds = new ArrayList<>();
+                    while (rs.next()) {
+                        Row row = new Row();
+                        String rowId = rs.getString(1);
+                        rowIds.add(rowId);
+                        row.setRowId(rowId);
+
+                        Vector<Object> rowData = new Vector<>();
+                        for (int i = 1; i < numCols; i++) {
+                            String value = rs.getString(i + 1);
+                            rowData.add(value);
+                        }
+                        row.setData(rowData);
+                        t.addRow(row);
+                    }
+                    for(int i = 1; i <= numCols; i++){
+                        columns.add(meta.getColumnName(i));
+                    }
+                    rows = rowIds;
+                    TableEditor.this.t = t;
+
+
+                    //now we have the rows that are going to be updated
+
+
+
+
+
+
+
+                    updateTable(tableName);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return null;
+            }
+        };
+        worker.execute();
+    }
+
+    private void select(String sql){
+        SwingWorker<String, String> worker = new SwingWorker<String, String>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                try {
+                    columns.clear();
+                    data.clear();
+                    numRows = DEFAULT_NUM_ROWS;
+                    ((DefaultTableModel) model).setRowCount(0);
+
+                    Statement stmt = conn.createStatement();
+                    stmt.executeUpdate("use " + pcName);
+
+                    PreparedStatement ps = conn.prepareStatement("show full tables where Table_Type = 'BASE TABLE'");
+                    ResultSet rs = ps.executeQuery();
+                    key = "";
+                    if (rs != null) {
+                        while (rs.next()) {
+                            String tableName = rs.getString(1);
+                            //textArea.append("tableName: " + tableName);
+                            PreparedStatement ps2 = conn.prepareStatement("SELECT k.COLUMN_NAME\n" +
+                                    "FROM information_schema.table_constraints t\n" +
+                                    "LEFT JOIN information_schema.key_column_usage k\n" +
+                                    "USING(constraint_name,table_schema,table_name)\n" +
+                                    "WHERE t.constraint_type='PRIMARY KEY'\n" +
+                                    "    AND t.table_schema=DATABASE()\n" +
+                                    "    AND t.table_name='" + tableName + "'\n" +
+                                    "    AND k.COLUMN_NAME like '%id%'");
+                            ResultSet rs2 = ps2.executeQuery();
+                            if (rs2 == null) {
+                                JOptionPane.showMessageDialog(null, "Error", "Table does not have a Primary Key.\nThis tool requires the table to have a Primary Key.", JOptionPane.ERROR_MESSAGE);
+                                return null;
+                            } else {
+                                while (rs2.next()) {
+                                    key = rs2.getString(1);
+                                }
+                            }
+                        }
+                    }
+
+                    String userId = util.getUserId().split(PM_FIELD_DELIM)[1];
+                    String[] pieces = sql.split("from |FROM |select |SELECT |where |WHERE |limit |LIMIT ");
+                    String cols = pieces[1];
+
+                    tableName = pieces[2].trim();
+
+                    String[] colPieces = cols.split("\\, |\\,");
+                    String finalCols = "";
+                    for (String s : colPieces) {
+                        if (s.equals(key)) {
+                            finalCols = key + "," + finalCols;
+                            continue;
+                        }
+                        finalCols += s + ",";
+                    }
+
+                    if (finalCols.contains(key)) {
+                        finalCols = finalCols.substring(0, finalCols.lastIndexOf(','));
+                    } else {
+                        finalCols = key + "," + finalCols.substring(0, finalCols.lastIndexOf(','));
+                    }
+
+                    reqColumns = new ArrayList<>(Arrays.asList(cols.split("\\, |\\,")));
+                    for(int i = 0; i < reqColumns.size(); i++){
+                        reqColumns.set(i, reqColumns.get(i).trim());
+                    }
+
+                    String finalSql = "select " + finalCols + " from " + sql.substring(sql.indexOf(tableName));
+
+                    Table t = new Table();
+                    t.setTable(tableName);
+                    //t.setKeys(key);
+                    //t.setColumns(finalCols.split(","));
+
+
+                    stmt = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    stmt.setFetchSize(Integer.MIN_VALUE);
+                    rs = stmt.executeQuery(finalSql);
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int numCols = meta.getColumnCount();
+                    List<String> rowIds = new ArrayList<>();
+                    while (rs.next()) {
+                        Row row = new Row();
+                        String rowId = rs.getString(1);
+                        rowIds.add(rowId);
+                        row.setRowId(rowId);
+
+                        Vector<Object> rowData = new Vector<>();
+                        for (int i = 1; i < numCols; i++) {
+                            String value = rs.getString(i + 1);
+                            rowData.add(value);
+                        }
+                        row.setData(rowData);
+                        t.addRow(row);
+                    }
+                    for(int i = 1; i <= numCols; i++){
+                        columns.add(meta.getColumnName(i));
+                    }
+                    rows = rowIds;
+                    TableEditor.this.t = t;
+                    updateTable(tableName);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return null;
+            }
+        };
+        worker.execute();
     }
 
     private void editField(){
@@ -405,7 +992,7 @@ public class TableEditor extends JFrame {
         Packet recInfo = sysCaller.getRecordInfo(sysCaller.getIdOfEntityWithNameAndType(recName, PM_NODE.OATTR.value));
 
         String sLine = recInfo.getStringValue(2);
-        int nComp = Integer.valueOf(sLine).intValue();
+        int nComp = Integer.valueOf(sLine);
 
         List<String> compNameList = new ArrayList<String>();
         for (int j = 0; j < nComp; j++) {
@@ -571,6 +1158,36 @@ public class TableEditor extends JFrame {
         pcName = ((String) tableBoxModel.getElementAt(sel));
         pcId = sysCaller.getIdOfEntityWithNameAndType(pcName, PM_NODE.POL.value);
 
+        Packet storageProp = util.genCmd("getNodePropertyValue", pcId, "storage");
+        String prop = storageProp.getStringValue(0);
+        if(prop.equalsIgnoreCase("database")){
+            //prompt for database connection
+            int result = JOptionPane.showConfirmDialog(null, getDbConnection(), "Connect to " + pcName, JOptionPane.OK_CANCEL_OPTION);
+            if(result == JOptionPane.CANCEL_OPTION){
+                return false;
+            }else{
+                String host = hostField.getText();
+                String port = portField.getText();
+                String user = userField.getText();
+                String pass = passField.getText();
+                String dbName = pcName;//dbNameField.getText();
+
+                try {
+                    Class.forName("com.mysql.jdbc.Driver");
+                    conn = DriverManager.getConnection("jdbc:mysql://" + host + ":" + port + "/" + dbName, user, pass);
+                    if (conn != null) {
+                        conn.setAutoCommit(true);
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Could not establish database connection...");
+                        return false;
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            //splitPane.setLeftComponent(null);
+        }
+
         Packet temps = util.getTemplates();
         for(int i = 0 ; i < temps.size(); i++){
             String temp = temps.getStringValue(i);
@@ -588,13 +1205,49 @@ public class TableEditor extends JFrame {
             String tempKeys = tempInfo.getStringValue(2);
             pieces = tempKeys.split(GlobalConstants.PM_FIELD_DELIM);
             for(String s : pieces){
-                keys.add(s);
+                keys.add(sysCaller.getIdOfEntityWithNameAndType(s, PM_NODE.OATTR.value));
             }
 
             Template t = new Template(tempName, tempId, conts, keys);
             templates.add(t);
         }
         return true;
+    }
+
+    private Connection conn;
+    private JPanel getDbConnection(){
+        db = true;
+
+        JPanel connectPane = new JPanel();
+
+        //host, port, user, password
+        connectPane.add(new JLabel("Host:"));
+        hostField = new JTextField(10);
+        connectPane.add(hostField);
+        hostField.setText("localhost");
+
+        connectPane.add(new JLabel("Port:"));
+        portField = new JTextField(5);
+        connectPane.add(portField);
+        portField.setText("3306");
+
+        connectPane.add(new JLabel("User:"));
+        userField = new JTextField(10);
+        connectPane.add(userField);
+        userField.setText("root");
+
+        connectPane.add(new JLabel("Password:"));
+        passField = new JTextField(10);
+        connectPane.add(passField);
+        passField.setText("root");
+
+        connectPane.add(new JLabel("Database:"));
+        dbNameField = new JTextField(10);
+        connectPane.add(dbNameField);
+        dbNameField.setText("emp_rec");
+
+
+        return connectPane;
     }
 
     public Template getActiveTemplate(){
@@ -617,17 +1270,6 @@ public class TableEditor extends JFrame {
                 return false;
             }
         }
-        schemaNode = new PmNode(
-                PM_NODE.POL.value,
-                pcId,
-                pcName,
-                new PmNodeChildDelegate(util.sslClient, sSessionId, PmGraphDirection.UP, PmGraphType.OBJECT_ATTRIBUTES));
-        tree = new PmGraph(schemaNode, false);
-        tree.setToolTipText("Right-click to open a record, container, or table");
-        tree.setRootVisible(false);
-        tree.setShowsRootHandles(true);
-        tree.getSelectionModel().setSelectionMode(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION);
-        tree.addMouseListener(new SchemaMouseListener());
         return true;
     }
 
@@ -656,7 +1298,7 @@ public class TableEditor extends JFrame {
     }
 
     private void setTableColumnSize(){
-        table.getColumnModel().removeColumn(table.getColumnModel().getColumn(0));
+        //table.getColumnModel().removeColumn(table.getColumnModel().getColumn(0));
         for(int i = 0; i < table.getColumnModel().getColumnCount(); i++)
         {
             table.getColumnModel().getColumn(i).setPreferredWidth(((String) table.getColumnModel().getColumn(i).getHeaderValue()).length() + 200);
@@ -934,26 +1576,20 @@ public class TableEditor extends JFrame {
     }
 
     private void resetSchemaView(){
-		/*schemaNode = new PmNode(
-				PM_NODE.OATTR.value, 
-				sysCaller.getIdOfEntityWithNameAndType(schemaName, PM_NODE.OATTR.value), 
-				schemaName, 
-				new PmNodeChildDelegate(util.sslClient, sSessionId, PmGraphDirection.USER, PmGraphType.USER));
-		 */schemaNode = new PmNode(
-                PM_NODE.POL.value,
-                pcId,
+        PmNodeChildDelegate childDelegate = new PmNodeChildDelegate(util.sslClient, sSessionId,
+                PmGraphDirection.UP_MELL,
+                PmGraphType.USER_MELL_ATTRIBUTES);
+        schemaNode = new PmNode(
+                PM_NODE.OATTR.value,
+                sysCaller.getIdOfEntityWithNameAndType(pcName, PM_NODE.OATTR.value),
                 pcName,
-                new PmNodeChildDelegate(util.sslClient, sSessionId, PmGraphDirection.UP, PmGraphType.OBJECT_ATTRIBUTES));
+                childDelegate);
+        tree = new PmGraph(schemaNode, false);
         final PmNode actualSchemaNode = new PmNode(
                 PM_NODE.OATTR.value,
                 pcId,
                 pcName,
                 new PmNodeChildDelegate(util.sslClient, sSessionId, PmGraphDirection.UP, PmGraphType.OBJECT_ATTRIBUTES));
-		 /*otherNode = new PmNode(
-				PM_NODE.OATTR.value, 
-				sysCaller.getIdOfEntityWithNameAndType(schemaName + " Containers", PM_NODE.OATTR.value), 
-				schemaName + " Containers", 
-				new PmNodeChildDelegate(util.sslClient, sSessionId, PmGraphDirection.USER, PmGraphType.USER));*/
         PmNode root = PmNode.createObjectAttributeNode("root");
         PmNode.linkNodes(root, new PmNode[]{schemaNode});//, otherNode});
         tree = new PmGraph(root, false);
@@ -1210,7 +1846,7 @@ public class TableEditor extends JFrame {
 
 
     public static void main(String[] args){
-        //log("main called in schemabuilder 2");
+        //log("main called in schema 2");
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("-session")) {
                 sessid = args[++i];
@@ -1382,7 +2018,7 @@ public class TableEditor extends JFrame {
         @Override
         public void mousePressed(MouseEvent e)
         {
-            if(!SwingUtilities.isRightMouseButton(e)){
+            if(SwingUtilities.isRightMouseButton(e)){
                 return;
             }
             System.out.println("IN SCHEMA MOUSE LISTENER");
@@ -1392,14 +2028,8 @@ public class TableEditor extends JFrame {
 
             PmNode selNode = (PmNode)tree.getLastSelectedPathComponent();
             System.out.println("SelectedNode: " + selNode.getName());
-            if (selNode != null)
-            {
-                Long s = System.currentTimeMillis();
-                refreshModel(selNode);
-                Long e1 = System.currentTimeMillis();
-                System.out.println((double)(e1-s)/1000);
-                lastSelNode = selNode;
-            }
+            //refreshModel(selNode);
+            lastSelNode = selNode;
         }
 
         @Override

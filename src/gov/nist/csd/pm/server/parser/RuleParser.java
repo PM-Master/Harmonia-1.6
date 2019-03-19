@@ -2726,12 +2726,7 @@ public class RuleParser {
         scriptName = crtToken.tokenValue;
         //scriptId = generateId();
         if (ServerConfig.myEngine != null) {
-            if(ServerConfig.datastore.equals("SQL")) {
-                scriptId = ServerConfig.obligationDAO.createScriptRecord(scriptId, scriptName);
-            }else{
-                scriptId = generateId();
-                ServerConfig.ADDAO.createScriptRecord(scriptId, scriptName);
-            }
+            scriptId = ServerConfig.obligationDAO.createScriptRecord(scriptId, scriptName);
             traceSemact("save script " + scriptName + ", " + scriptId);
         }
     }
@@ -3621,11 +3616,7 @@ public class RuleParser {
         traceSemact("write rule spec to the active directory");
         String result = null;
         if (ServerConfig.myEngine != null) {
-            if(ServerConfig.datastore.equals("SQL")) {
-                result = ServerConfig.obligationDAO.generateRuleCode(ruleSpec, scriptId, lastRuleId);
-            }else{
-                result = ServerConfig.ADDAO.generateRuleCode(ruleSpec, scriptId, lastRuleId);
-            }
+            result = ServerConfig.obligationDAO.generateRuleCode(ruleSpec, scriptId, lastRuleId);
         }
         if (result != null) {
             return signalSemError(result);

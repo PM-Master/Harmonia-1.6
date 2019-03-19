@@ -6,10 +6,9 @@ import gov.nist.csd.pm.common.config.ServerConfig;
 import gov.nist.csd.pm.common.net.ItemType;
 import gov.nist.csd.pm.common.net.Packet;
 import gov.nist.csd.pm.common.util.Log;
+import gov.nist.csd.pm.server.graph.Deny;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.HashSet;
 import java.util.Iterator;
 
@@ -116,7 +115,30 @@ public class SQLPacketHandler {
 		System.out.println("PM Engine Dispatch " + sCmdCode);
 
 		// Dispatch the command
-		if(sCmdCode.equalsIgnoreCase("setTableModifying")){
+		if(sCmdCode.equalsIgnoreCase("addCompsToRecord")){
+			String sId = cmdPacket.getStringValue(2);
+			String sComps = cmdPacket.getStringValue(3);
+			return ServerConfig.SQLDAO.addCompsToRecord(sId, sComps);
+		}else if(sCmdCode.equalsIgnoreCase("getSessionUserId")){
+			String sessId = cmdPacket.getStringValue(1);
+			return ServerConfig.SQLDAO.getSessionUserId(sessId);
+		}else if(sCmdCode.equalsIgnoreCase("oattrIsAccessible")){
+			String userId = cmdPacket.getStringValue(2);
+			String oId = cmdPacket.getStringValue(3);
+			return ServerConfig.SQLDAO.oattrIsAccessible(userId, oId);
+		}else if(sCmdCode.equalsIgnoreCase("getNodePropertyValue")){
+			String nodeId = cmdPacket.getStringValue(2);
+			String propName = cmdPacket.getStringValue(3);
+			return ServerConfig.SQLDAO.getNodePropertyValue(nodeId, propName);
+        }else if(sCmdCode.equalsIgnoreCase("getIntersection")){
+            String userId = cmdPacket.getStringValue(2);
+            String oId = cmdPacket.getStringValue(3);
+            return ServerConfig.SQLDAO.getIntersection(userId, oId);
+		}else if(sCmdCode.equalsIgnoreCase("addTemplateToRecord")){
+			String sRecId = cmdPacket.getStringValue(2);
+			String sTplId = cmdPacket.getStringValue(3);
+			return ServerConfig.SQLDAO.addTemplateToRecord(sRecId, sTplId);
+		}else if(sCmdCode.equalsIgnoreCase("setTableModifying")){
 			ServerConfig.SQLDAO.setTableModifying(cmdPacket.getStringValue(2));
 		}else if (sCmdCode.equalsIgnoreCase("buildClipboard")) {
 			String sSessId = cmdPacket.getStringValue(1);
@@ -142,8 +164,9 @@ public class SQLPacketHandler {
             String oattrType = cmdPacket.getStringValue(4);
 			String sPolicyClass = cmdPacket.getStringValue(5);
 			String sUattr = cmdPacket.getStringValue(6);
+            String[] sProps = getItemsFromPacket(cmdPacket, 7);
 			return ServerConfig.SQLDAO.createSchemaPC(sSessId, sProcId, policyType,
-					oattrType, sPolicyClass, sUattr);
+                    oattrType, sPolicyClass, sUattr, sProps);
 		}else if(sCmdCode.equalsIgnoreCase("addSchemaOattr")){
 			String sSessId = cmdPacket.getStringValue(1);
 			String oattrType = cmdPacket.getStringValue(3);
@@ -209,7 +232,7 @@ public class SQLPacketHandler {
 			String uattr = cmdPacket.getStringValue(8);
 			String inh = cmdPacket.getStringValue(9);
 			return ServerConfig.SQLDAO.setTablePerms(sSessId, sProcId, sBaseName,
-					sBaseType, sAttrName, sAttrType, sPerms, uattr, inh.equalsIgnoreCase("yes"));
+                    sBaseType, sAttrName, sAttrType, sPerms, uattr, inh.equalsIgnoreCase("yes"));
 		}else if(sCmdCode.equalsIgnoreCase("deleteTemplate")){
 			String sSessId = cmdPacket.getStringValue(1);
 			String sTplId = cmdPacket.getStringValue(2);
@@ -648,7 +671,10 @@ public class SQLPacketHandler {
 			String sIsInters = cmdPacket.getStringValue(9);
 			return ServerConfig.SQLDAO.addDeny(sSessId, sDenyName, sDenyType, sUserOrAttrName,
 					sUserOrAttrId, sOp, sOattrName, sOattrId, sIsInters);
-
+		}else if (sCmdCode.equalsIgnoreCase("addDenyAdmin")){
+			String sessId = cmdPacket.getStringValue(1);
+			String deny = cmdPacket.getStringValue(2);
+			return ServerConfig.SQLDAO.addDenyAdmin(sessId, Deny.fromJson(deny));
 		} else if (sCmdCode.equalsIgnoreCase("deleteDeny")) {
 			String sSessId = cmdPacket.getStringValue(1);
 			String sDenyName = cmdPacket.getStringValue(2);
@@ -658,6 +684,11 @@ public class SQLPacketHandler {
 			return ServerConfig.SQLDAO.deleteDeny(sSessId, sDenyName, sOp, sOattrName, sOattrId);
 
 		} else if (sCmdCode.equalsIgnoreCase("getIdOfEntityWithNameAndType")) {
+			String sSessId = cmdPacket.getStringValue(1);
+			String sEntityName = cmdPacket.getStringValue(2);
+			String sEntityType = cmdPacket.getStringValue(3);
+			return ServerConfig.SQLDAO.getEntityId(sSessId, sEntityName, sEntityType);
+		} else if (sCmdCode.equalsIgnoreCase("getEntityId")) {
 			String sSessId = cmdPacket.getStringValue(1);
 			String sEntityName = cmdPacket.getStringValue(2);
 			String sEntityType = cmdPacket.getStringValue(3);
@@ -1143,7 +1174,7 @@ public class SQLPacketHandler {
 			String sBaseType = cmdPacket.getStringValue(4);
 			String sGraphType = cmdPacket.getStringValue(5);
 			return ServerConfig.SQLDAO.getMellMembersOf(sSessId, sBaseName, sBaseId, sBaseType, sGraphType);
-
+            //return ServerConfig.SQLDAO.getMellMembersOf(sUserId, sBaseId, sPerm);
 		} else if (sCmdCode.equalsIgnoreCase("getConnector")) {
 			return ServerConfig.SQLDAO.getConnector();
 
@@ -1173,7 +1204,8 @@ public class SQLPacketHandler {
 			String sName = cmdPacket.getStringValue(2);
 			String sId = cmdPacket.getStringValue(3);
 			String sType = cmdPacket.getStringValue(4);
-			return ServerConfig.SQLDAO.initialOas(sSessId, sName, sId, sType);
+            String sPerm = cmdPacket.getStringValue(5);
+			return ServerConfig.SQLDAO.initialOas(sSessId, sName, sId, sType, sPerm);
 			
 		} else if (sCmdCode.equalsIgnoreCase("initialOasWithLabels")) {
 			String sSessId = cmdPacket.getStringValue(1);
@@ -1190,8 +1222,9 @@ public class SQLPacketHandler {
 			String sTgtName = cmdPacket.getStringValue(5);
 			String sTgtId = cmdPacket.getStringValue(6);
 			String sTgtType = cmdPacket.getStringValue(7);
+            String sPerm = cmdPacket.getStringValue(8);
 			return ServerConfig.SQLDAO.subsequentOas(sSessId, sUserName, sUserId, sUserType,
-					sTgtName, sTgtId, sTgtType);
+					sTgtName, sTgtId, sTgtType, sPerm);
 			
 		} else if (sCmdCode.equalsIgnoreCase("successorOas")) {
 			String sSessId = cmdPacket.getStringValue(1);
@@ -1201,8 +1234,9 @@ public class SQLPacketHandler {
 			String sTgtName = cmdPacket.getStringValue(5);
 			String sTgtId = cmdPacket.getStringValue(6);
 			String sTgtType = cmdPacket.getStringValue(7);
+            String sPerm = cmdPacket.getStringValue(8);
 			return ServerConfig.SQLDAO.successorOas(sSessId, sUserName, sUserId, sUserType,
-					sTgtName, sTgtId, sTgtType);
+					sTgtName, sTgtId, sTgtType, sPerm);
 			
 		} else if (sCmdCode.equalsIgnoreCase("calcPriv")) {
 			String sSessId = cmdPacket.getStringValue(1);

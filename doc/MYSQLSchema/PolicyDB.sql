@@ -1,20 +1,38 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               5.6.25-log - MySQL Community Server (GPL)
+-- Server version:               5.7.12-log - MySQL Community Server (GPL)
 -- Server OS:                    Win64
--- HeidiSQL Version:             9.3.0.4984
+-- HeidiSQL Version:             9.4.0.5125
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8 */;
+/*!50503 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 
+
 -- Dumping database structure for policydb
-DROP DATABASE IF EXISTS policydb;
+DROP DATABASE IF EXISTS `policydb`;
 CREATE DATABASE IF NOT EXISTS `policydb` /*!40100 DEFAULT CHARACTER SET utf8 */;
 USE `policydb`;
 
+-- Dumping structure for view policydb.acl_entry_view
+-- Creating temporary table to overcome VIEW dependency errors
+CREATE TABLE `acl_entry_view` (
+	`node_id` INT(11) NOT NULL,
+	`user` VARCHAR(100) NULL COLLATE 'utf8_general_ci',
+	`allowed_ops` VARCHAR(500) NULL COLLATE 'utf8_general_ci',
+	`obj_id` INT(11) NOT NULL,
+	`obj_name` VARCHAR(100) NULL COLLATE 'utf8_general_ci'
+) ENGINE=MyISAM;
+
+-- Dumping structure for view policydb.acl_view
+-- Creating temporary table to overcome VIEW dependency errors
+CREATE TABLE `acl_view` (
+	`obj_name` VARCHAR(100) NULL COLLATE 'utf8_general_ci',
+	`group_concat(user,'-',allowed_ops)` TEXT NULL COLLATE 'utf8_general_ci'
+) ENGINE=MyISAM;
 
 -- Dumping structure for function policydb.add_script
 DELIMITER //
@@ -27,7 +45,6 @@ RETURN script_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.allowed_operations
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `allowed_operations`(ua_id_in int(11), oa_id_in int(11)) RETURNS varchar(500) CHARSET utf8
@@ -35,44 +52,49 @@ BEGIN
 
 DECLARE policy_id_in int;
 DECLARE opset_id int;
-DECLARE allowed_ops varchar(500);
+DECLARE opsets_count int;
+DECLARE finished INTEGER DEFAULT 0;
+DECLARE p_finished INTEGER DEFAULT 0;
+DECLARE no_allowed_ops varchar(1);
+DECLARE allowed_ops varchar(5000);
 DECLARE done boolean DEFAULT FALSE;
 DECLARE names VARCHAR(8000);
-DECLARE policies CURSOR FOR select a.start_node_id as policy_id from assignment a where get_node_type(a.start_node_id) = 2 and end_node_id = oa_id_in;
-DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+DECLARE policies CURSOR FOR select distinct a.start_node_id as policy_id from assignment a where get_node_type(a.start_node_id) = 2 and end_node_id = oa_id_in;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET p_finished = 1;
   OPEN policies;
+  SET no_allowed_ops='';
   SET allowed_ops='';
   ploicy_loop: LOOP
     FETCH policies INTO policy_id_in;
-    IF done THEN
-      LEAVE ploicy_loop;
+    IF p_finished = 1 THEN 
+            LEAVE ploicy_loop;
     END IF;
     BEGIN
-                                DECLARE opsets CURSOR FOR SELECT a.opset_id from association as a where is_member(ua_id_in, a.ua_id) and is_member(oa_id_in, a.oa_id) and is_member(ua_id_in, policy_id_in);
-                                open opsets;
-                                opset_loop: loop
-                                                FETCH opsets INTO opset_id;
-            IF done THEN
-                                                                LEAVE opset_loop;
-                                                END IF;
-                                                set allowed_ops = CONCAT(allowed_ops,',',opset_id);
-                                end loop opset_loop;
-                                CLOSE opsets;
-                END;
+      DECLARE opsets CURSOR FOR SELECT distinct a.opset_id from association as a where is_member(ua_id_in, a.ua_id) and is_member(oa_id_in, a.oa_id) and is_member(ua_id_in, policy_id_in);
+      DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+      open opsets;
+      opset_loop: loop
+        FETCH opsets INTO opset_id;
+        IF finished = 1 THEN 
+            LEAVE opset_loop;
+        END IF;
+        set allowed_ops = CONCAT(allowed_ops,',', cast(opset_id as char));
+      end loop opset_loop;
+      CLOSE opsets;
+    END;
   END LOOP ploicy_loop;
   CLOSE policies;
   IF substring(allowed_ops FROM 1 FOR 1) = ',' THEN
-                SET allowed_ops = substring(allowed_ops,2);
+     SET allowed_ops = substring(allowed_ops,2);
   END IF;
 
-                SELECT group_concat(concat(name) separator ',') into names from operation as o, operation_set_details as osd
-                where o.operation_id = osd.operation_id
-                and osd.operation_set_details_node_id in (allowed_ops);
+  SELECT group_concat(concat(name) separator ',') into names from operation as o, operation_set_details as osd
+  where o.operation_id = osd.operation_id
+  and osd.operation_set_details_node_id in (allowed_ops);
 
 RETURN Names;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for table policydb.application
 CREATE TABLE IF NOT EXISTS `application` (
@@ -89,8 +111,6 @@ CREATE TABLE IF NOT EXISTS `application` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='application';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.assignment
 CREATE TABLE IF NOT EXISTS `assignment` (
   `assignment_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -107,8 +127,6 @@ CREATE TABLE IF NOT EXISTS `assignment` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table stores assignment relations';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.assignment_path
 CREATE TABLE IF NOT EXISTS `assignment_path` (
   `assignment_path_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -119,7 +137,24 @@ CREATE TABLE IF NOT EXISTS `assignment_path` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
+-- Dumping structure for view policydb.assignment_view
+-- Creating temporary table to overcome VIEW dependency errors
+CREATE TABLE `assignment_view` (
+	`start_node_id` INT(11) NULL,
+	`start_node_name` VARCHAR(100) NULL COLLATE 'utf8_general_ci',
+	`end_node_id` INT(11) NULL,
+	`end_node_name` VARCHAR(100) NULL COLLATE 'utf8_general_ci',
+	`depth` INT(11) NULL,
+	`assignment_path_id` INT(2) NULL
+) ENGINE=MyISAM;
 
+-- Dumping structure for view policydb.association
+-- Creating temporary table to overcome VIEW dependency errors
+CREATE TABLE `association` (
+	`ua_id` BIGINT(11) NULL,
+	`opset_id` INT(11) NULL,
+	`oa_id` INT(11) NULL
+) ENGINE=MyISAM;
 
 -- Dumping structure for table policydb.audit_information
 CREATE TABLE IF NOT EXISTS `audit_information` (
@@ -136,8 +171,6 @@ CREATE TABLE IF NOT EXISTS `audit_information` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for procedure policydb.create_assignment
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `create_assignment`(start_node int, end_node int)
@@ -165,15 +198,14 @@ DECLARE path_id int;
                                                                                                 (start_node, end_node, 1 );
                                                                 END IF;
                                                 END IF;
-                                                IF start_node <> 1 AND get_node_type(end_node) <> 2 THEN  -- other than policy class
-                                                                -- delete connection to connector
+                                                IF get_node_type(end_node) <> 2 THEN 
+                                                                
                                                                 DELETE FROM assignment WHERE START_NODE_ID = 1 AND END_NODE_ID = end_node AND depth = 1;
                                                 END IF;
                                 END IF;
                 END IF;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for procedure policydb.create_association
 DELIMITER //
@@ -197,7 +229,6 @@ DECLARE opset_id int;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for procedure policydb.create_host
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `create_host`(user_id int, hostname varchar(50), domain_controller_ind varchar(1), path varchar(200))
@@ -209,7 +240,6 @@ BEGIN
 
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.create_node_fun
 DELIMITER //
@@ -231,7 +261,6 @@ DECLARE inserted_node_id int;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for procedure policydb.create_object_class
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `create_object_class`(object_class_name varchar(45), object_class_id_in int, class_object_description varchar(100))
@@ -242,7 +271,6 @@ BEGIN
                 END IF;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for procedure policydb.create_object_detail
 DELIMITER //
@@ -259,7 +287,6 @@ DECLARE new_object_id int;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.create_ob_cont_spec
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `create_ob_cont_spec`(event_pattern_id_in varchar(50), node_type_in varchar(50),
@@ -273,7 +300,6 @@ RETURN cont_spec_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.create_ob_obj_spec
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `create_ob_obj_spec`(event_pattern_id_in varchar(50), node_type_in varchar(50),
@@ -285,7 +311,6 @@ BEGIN
 RETURN obj_spec_id_var;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.create_ob_op_spec
 DELIMITER //
@@ -300,7 +325,6 @@ RETURN op_spec_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.create_ob_pc_spec
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `create_ob_pc_spec`(event_pattern_id_in varchar(50), node_type_in varchar(50),
@@ -313,7 +337,6 @@ RETURN pc_spec_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.create_ob_user_spec
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `create_ob_user_spec`(node_type_in varchar(50),
@@ -325,7 +348,6 @@ BEGIN
 RETURN user_spec_id_var;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.create_operand
 DELIMITER //
@@ -346,7 +368,6 @@ DECLARE inserted_operand_id int;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for procedure policydb.create_operation
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `create_operation`(operation_name varchar(45), object_class_id_in int)
@@ -357,7 +378,6 @@ BEGIN
                 END IF;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for procedure policydb.create_opset
 DELIMITER //
@@ -387,7 +407,6 @@ DECLARE op_list varchar(1000);
 END//
 DELIMITER ;
 
-
 -- Dumping structure for procedure policydb.create_opset_detail
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `create_opset_detail`(opset_id int, operation varchar(50))
@@ -402,7 +421,6 @@ DECLARE op_id int;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.create_user_detail_fun
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `create_user_detail_fun`(user_id int, user_name varchar(20), full_name varchar(50), user_password varchar(1000), email_address varchar(100),
@@ -415,7 +433,6 @@ BEGIN
     RETURN USER_ID;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.create_user_fun
 DELIMITER //
@@ -432,7 +449,6 @@ DECLARE new_node_id int(11);
     RETURN USER_ID;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for procedure policydb.delete_assignment
 DELIMITER //
@@ -467,7 +483,6 @@ END IF;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for procedure policydb.delete_deny
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `delete_deny`(deny_id_in int(11))
@@ -476,7 +491,6 @@ BEGIN
 END//
 DELIMITER ;
 
-
 -- Dumping structure for procedure policydb.delete_property
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `delete_property`(property_in varchar(200))
@@ -484,7 +498,6 @@ BEGIN
       DELETE FROM NODE_PROPERTY WHERE UPPER(property_key) = UPPER(property_in);
 END//
 DELIMITER ;
-
 
 -- Dumping structure for table policydb.deny
 CREATE TABLE IF NOT EXISTS `deny` (
@@ -504,8 +517,6 @@ CREATE TABLE IF NOT EXISTS `deny` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Deny';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.deny_obj_attribute
 CREATE TABLE IF NOT EXISTS `deny_obj_attribute` (
   `deny_id` int(11) NOT NULL,
@@ -518,8 +529,6 @@ CREATE TABLE IF NOT EXISTS `deny_obj_attribute` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.deny_operation
 CREATE TABLE IF NOT EXISTS `deny_operation` (
   `deny_id` int(11) NOT NULL,
@@ -531,8 +540,6 @@ CREATE TABLE IF NOT EXISTS `deny_operation` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.deny_type
 CREATE TABLE IF NOT EXISTS `deny_type` (
   `deny_type_id` int(11) NOT NULL,
@@ -541,8 +548,6 @@ CREATE TABLE IF NOT EXISTS `deny_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Deny types';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.email_attachment
 CREATE TABLE IF NOT EXISTS `email_attachment` (
   `object_node_id` int(11) NOT NULL,
@@ -553,8 +558,6 @@ CREATE TABLE IF NOT EXISTS `email_attachment` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='stores email attachments\n';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.email_detail
 CREATE TABLE IF NOT EXISTS `email_detail` (
   `object_node_id` int(11) NOT NULL,
@@ -570,8 +573,6 @@ CREATE TABLE IF NOT EXISTS `email_detail` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='table to hold information for emails.  sender, recipient, etc';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for function policydb.formatCSL
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `formatCSL`(
@@ -599,6 +600,28 @@ RETURN _text;
 END//
 DELIMITER ;
 
+-- Dumping structure for procedure policydb.get_ACLs
+DELIMITER //
+CREATE DEFINER=`root`@`localhost` PROCEDURE `get_ACLs`()
+BEGIN
+DECLARE finished INTEGER DEFAULT 0;
+DECLARE obj_id_in INTEGER DEFAULT 0;
+DECLARE objects CURSOR FOR (select node_id as obj_id FROM node where node_type_id in (5, 6));
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+  OPEN objects;
+    objects_loop: LOOP
+        FETCH objects INTO obj_id_in;
+        IF finished = 1 THEN 
+                LEAVE objects_loop;
+        END IF;
+        select n1.node_id, get_node_name(n1.node_id) as u_ua_id, allowed_operations(n1.node_id, obj_id_in) as allowed_ops, obj_id_in, get_node_name(obj_id_in)
+        from node n1
+        where n1.node_type_id in (3,4)
+        and allowed_operations(n1.node_id, obj_id_in) is  not null;
+    END LOOP objects_loop;
+  CLOSE objects;
+END//
+DELIMITER ;
 
 -- Dumping structure for function policydb.get_action_type_id
 DELIMITER //
@@ -611,7 +634,6 @@ RETURN action_type_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.get_action_type_name
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_action_type_name`(action_type_id_in int(11)) RETURNS varchar(50) CHARSET utf8
@@ -622,7 +644,6 @@ DECLARE action_type_name_var varchar(50);
 RETURN action_type_name_var;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_cond_type_id
 DELIMITER //
@@ -635,7 +656,6 @@ RETURN cond_type_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.get_cond_type_name
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_cond_type_name`(cond_type_id_in int(11)) RETURNS varchar(50) CHARSET utf8
@@ -646,7 +666,6 @@ DECLARE cond_type_name_var varchar(50);
 RETURN cond_type_name_var;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_cont_spec_type_id
 DELIMITER //
@@ -659,7 +678,6 @@ RETURN cont_spec_type_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for procedure policydb.get_denied_ops
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `get_denied_ops`(process_id_in int(9), user_id int, obj_id int)
@@ -670,7 +688,6 @@ BEGIN
     AND is_object_in_deny(obj_id, D.DENY_ID, D.IS_INTERSECTION);
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_deny_type_id
 DELIMITER //
@@ -683,7 +700,6 @@ RETURN deny_type_id_out;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.get_host_id
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_host_id`(hostname varchar(50)) RETURNS int(11)
@@ -693,7 +709,6 @@ DECLARE hostid int;
 RETURN hostid;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_host_name
 DELIMITER //
@@ -705,7 +720,6 @@ RETURN host_name_out;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.GET_HOST_PATH
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `GET_HOST_PATH`(host_id_in int(11)) RETURNS varchar(300) CHARSET utf8
@@ -713,17 +727,6 @@ BEGIN
 DECLARE workarea_path_out varchar(300);
                 SELECT workarea_path INTO workarea_path_out FROM HOST WHERE host_id = host_id_in;
 RETURN workarea_path_out;
-END//
-DELIMITER ;
-
--- Dumping structure for function policydb.GET_NODE_NAME
-DELIMITER //
-CREATE DEFINER=`root`@`localhost` FUNCTION `GET_NODE_NAME`(node_id_in int(11)) RETURNS varchar(100) CHARSET utf8
-BEGIN
-DECLARE node_name varchar(100);
-
-SELECT name INTO node_name FROM NODE WHERE node_id = node_id_in;
-RETURN node_name;
 END//
 DELIMITER ;
 
@@ -745,10 +748,20 @@ RETURN node;
 END//
 DELIMITER ;
 
+-- Dumping structure for function policydb.GET_NODE_NAME
+DELIMITER //
+CREATE DEFINER=`root`@`localhost` FUNCTION `get_node_name`(node_id_in int(11)) RETURNS varchar(100) CHARSET utf8
+BEGIN
+DECLARE node_name varchar(100);
+
+SELECT name INTO node_name FROM NODE WHERE node_id = node_id_in;
+RETURN node_name;
+END//
+DELIMITER ;
 
 -- Dumping structure for function policydb.GET_NODE_TYPE
 DELIMITER //
-CREATE DEFINER=`root`@`localhost` FUNCTION `GET_NODE_TYPE`(node_id_in int(11)) RETURNS int(11)
+CREATE DEFINER=`root`@`localhost` FUNCTION `get_node_type`(node_id_in int(11)) RETURNS int(11)
 BEGIN
 DECLARE type_id INT;
                 SELECT node_type_id INTO type_id FROM NODE
@@ -756,7 +769,6 @@ DECLARE type_id INT;
 RETURN type_id;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_node_type_id
 DELIMITER //
@@ -769,19 +781,17 @@ RETURN node_type_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.get_node_type_name
 DELIMITER //
-CREATE DEFINER=`root`@`localhost` FUNCTION `get_node_type_name`(node_id_in int(11)) RETURNS varchar(50) CHARSET utf8
+CREATE DEFINER=`root`@`localhost` FUNCTION `get_node_type_name`(node_type_id_in int(11)) RETURNS varchar(50) CHARSET utf8
 BEGIN
 DECLARE type_name varchar(50);
-                SELECT node_type.name INTO type_name FROM node, node_type
-                WHERE node.node_type_id = node_type.node_type_id
-    AND node_id = node_id_in;
+                /* SELECT node_type.name INTO type_name FROM node, node_type
+                WHERE node.node_type_id = node_type.node_type_id*/
+                select node_type.name into type_name from node_type where node_type_id=node_type_id_in;
 RETURN type_name;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_object_class_name
 DELIMITER //
@@ -794,7 +804,6 @@ RETURN class_name;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.get_operand_type_id
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_operand_type_id`(operand_type_in varchar(50)) RETURNS int(11)
@@ -806,7 +815,6 @@ RETURN operand_type_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.get_operand_type_name
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_operand_type_name`(operand_type_id_in int(11)) RETURNS varchar(50) CHARSET utf8
@@ -817,7 +825,6 @@ DECLARE operand_type_name_var varchar(11);
 RETURN operand_type_name_var;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_operations
 DELIMITER //
@@ -834,7 +841,6 @@ DECLARE ops_of_opset VARCHAR(500);
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.get_operation_id
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_operation_id`(operation_name varchar(45)) RETURNS int(11)
@@ -845,7 +851,6 @@ DECLARE op_id INT;
 RETURN op_id;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_operation_name
 DELIMITER //
@@ -858,7 +863,6 @@ RETURN op_name;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.get_op_spec_type_id
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_op_spec_type_id`(op_spec_type_name_in varchar(50)) RETURNS int(11)
@@ -869,7 +873,6 @@ DECLARE op_spec_type_id_var int(11);
 RETURN op_spec_type_id_var;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.get_user_spec_type_id
 DELIMITER //
@@ -882,7 +885,6 @@ RETURN user_spec_type_id_var;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for table policydb.host
 CREATE TABLE IF NOT EXISTS `host` (
   `host_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -893,8 +895,6 @@ CREATE TABLE IF NOT EXISTS `host` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='host machine info';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for function policydb.isValidCSL
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `isValidCSL`(
@@ -907,7 +907,6 @@ RETURN _textIn IS NOT NULL && (_textIn = '' || _textIn REGEXP '^([1-9][0-9]{2},)
 
 END//
 DELIMITER ;
-
 
 -- Dumping structure for function policydb.is_accessible
 DELIMITER //
@@ -940,7 +939,6 @@ RETURN is_accessible;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.is_ascendant_of
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `is_ascendant_of`(ascendant_node_id int,descendant_node_id int) RETURNS tinyint(4)
@@ -958,7 +956,6 @@ END IF;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.is_member
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `is_member`(member_id_in int(11), container_id_in int(11)) RETURNS tinyint(1)
@@ -975,7 +972,6 @@ DECLARE is_member boolean;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for function policydb.is_object_in_deny
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `is_object_in_deny`(obj_id int,deny_id_in int, is_intersection int) RETURNS tinyint(1)
@@ -988,7 +984,7 @@ WHERE DENY_ID = deny_id_in;
 IF is_intersection THEN
     SELECT COUNT(*) INTO row_cnt FROM DENY_OBJ_ATTRIBUTE D
     WHERE D.deny_id = deny_id_in
-    -- AND is_ascendant_of(obj_id,D.object_attribute_id) AND NOT object_complement;
+    
     AND ((is_ascendant_of(obj_id,D.object_attribute_id) AND NOT object_complement)
                 OR (!is_ascendant_of(obj_id,D.object_attribute_id) AND object_complement));
     IF row_cnt = 0 OR row_cnt < deny_obj_cnt THEN
@@ -996,7 +992,7 @@ IF is_intersection THEN
     ELSE
       RETURN TRUE;
     END IF;
-ELSE  -- UNION
+ELSE  
     SELECT COUNT(*) INTO row_cnt FROM DENY_OBJ_ATTRIBUTE D
     WHERE D.deny_id = deny_id_in
     AND ((is_ascendant_of(obj_id,D.object_attribute_id) AND NOT object_complement)
@@ -1009,7 +1005,6 @@ ELSE  -- UNION
 END IF;
 END//
 DELIMITER ;
-
 
 -- Dumping structure for table policydb.keystore
 CREATE TABLE IF NOT EXISTS `keystore` (
@@ -1024,8 +1019,6 @@ CREATE TABLE IF NOT EXISTS `keystore` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='host machine info';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.node
 CREATE TABLE IF NOT EXISTS `node` (
   `node_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1038,8 +1031,6 @@ CREATE TABLE IF NOT EXISTS `node` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table contains all the nodes in the graph';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.node_property
 CREATE TABLE IF NOT EXISTS `node_property` (
   `property_node_id` int(11) NOT NULL DEFAULT '0',
@@ -1050,8 +1041,6 @@ CREATE TABLE IF NOT EXISTS `node_property` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.node_type
 CREATE TABLE IF NOT EXISTS `node_type` (
   `node_type_id` int(11) NOT NULL,
@@ -1063,8 +1052,6 @@ CREATE TABLE IF NOT EXISTS `node_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table contains node types';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.object_class
 CREATE TABLE IF NOT EXISTS `object_class` (
   `object_class_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1075,8 +1062,6 @@ CREATE TABLE IF NOT EXISTS `object_class` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Object Class';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.object_detail
 CREATE TABLE IF NOT EXISTS `object_detail` (
   `object_node_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1098,7 +1083,11 @@ CREATE TABLE IF NOT EXISTS `object_detail` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Object Details';
 
 -- Data exporting was unselected.
-
+-- Dumping structure for view policydb.object_view
+-- Creating temporary table to overcome VIEW dependency errors
+CREATE TABLE `object_view` (
+	`obj_id` INT(11) NOT NULL
+) ENGINE=MyISAM;
 
 -- Dumping structure for table policydb.ob_action
 CREATE TABLE IF NOT EXISTS `ob_action` (
@@ -1116,8 +1105,6 @@ CREATE TABLE IF NOT EXISTS `ob_action` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_action_type
 CREATE TABLE IF NOT EXISTS `ob_action_type` (
   `action_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1126,8 +1113,6 @@ CREATE TABLE IF NOT EXISTS `ob_action_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_condition
 CREATE TABLE IF NOT EXISTS `ob_condition` (
   `condition_id` varchar(50) NOT NULL,
@@ -1140,8 +1125,6 @@ CREATE TABLE IF NOT EXISTS `ob_condition` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_condition_type
 CREATE TABLE IF NOT EXISTS `ob_condition_type` (
   `cond_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1150,8 +1133,6 @@ CREATE TABLE IF NOT EXISTS `ob_condition_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_cont_spec
 CREATE TABLE IF NOT EXISTS `ob_cont_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1164,8 +1145,6 @@ CREATE TABLE IF NOT EXISTS `ob_cont_spec` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_cont_spec_type
 CREATE TABLE IF NOT EXISTS `ob_cont_spec_type` (
   `cont_spec_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1174,8 +1153,6 @@ CREATE TABLE IF NOT EXISTS `ob_cont_spec_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_event_pattern
 CREATE TABLE IF NOT EXISTS `ob_event_pattern` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1188,8 +1165,6 @@ CREATE TABLE IF NOT EXISTS `ob_event_pattern` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_obj_spec
 CREATE TABLE IF NOT EXISTS `ob_obj_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1202,8 +1177,6 @@ CREATE TABLE IF NOT EXISTS `ob_obj_spec` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_operand
 CREATE TABLE IF NOT EXISTS `ob_operand` (
   `operand_id` varchar(50) NOT NULL,
@@ -1227,8 +1200,6 @@ CREATE TABLE IF NOT EXISTS `ob_operand` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_operand_args
 CREATE TABLE IF NOT EXISTS `ob_operand_args` (
   `operand_id` varchar(50) NOT NULL,
@@ -1241,8 +1212,6 @@ CREATE TABLE IF NOT EXISTS `ob_operand_args` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_operand_type
 CREATE TABLE IF NOT EXISTS `ob_operand_type` (
   `operand_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1251,8 +1220,6 @@ CREATE TABLE IF NOT EXISTS `ob_operand_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_op_spec
 CREATE TABLE IF NOT EXISTS `ob_op_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1264,8 +1231,6 @@ CREATE TABLE IF NOT EXISTS `ob_op_spec` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_op_spec_events
 CREATE TABLE IF NOT EXISTS `ob_op_spec_events` (
   `event_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1274,8 +1239,6 @@ CREATE TABLE IF NOT EXISTS `ob_op_spec_events` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_policy_spec
 CREATE TABLE IF NOT EXISTS `ob_policy_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1287,8 +1250,6 @@ CREATE TABLE IF NOT EXISTS `ob_policy_spec` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_rule
 CREATE TABLE IF NOT EXISTS `ob_rule` (
   `rule_id` varchar(50) NOT NULL,
@@ -1302,8 +1263,6 @@ CREATE TABLE IF NOT EXISTS `ob_rule` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_script
 CREATE TABLE IF NOT EXISTS `ob_script` (
   `script_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1314,8 +1273,6 @@ CREATE TABLE IF NOT EXISTS `ob_script` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_script_source
 CREATE TABLE IF NOT EXISTS `ob_script_source` (
   `script_id` int(11) NOT NULL,
@@ -1326,8 +1283,6 @@ CREATE TABLE IF NOT EXISTS `ob_script_source` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_user_spec
 CREATE TABLE IF NOT EXISTS `ob_user_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1340,8 +1295,6 @@ CREATE TABLE IF NOT EXISTS `ob_user_spec` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.ob_user_spec_type
 CREATE TABLE IF NOT EXISTS `ob_user_spec_type` (
   `user_spec_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1350,8 +1303,6 @@ CREATE TABLE IF NOT EXISTS `ob_user_spec_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.open_object
 CREATE TABLE IF NOT EXISTS `open_object` (
   `session_id` int(11) NOT NULL,
@@ -1364,8 +1315,6 @@ CREATE TABLE IF NOT EXISTS `open_object` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='table for open objects';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.operation
 CREATE TABLE IF NOT EXISTS `operation` (
   `operation_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1383,8 +1332,6 @@ CREATE TABLE IF NOT EXISTS `operation` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Operation';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.operation_set_details
 CREATE TABLE IF NOT EXISTS `operation_set_details` (
   `operation_set_details_node_id` int(11) NOT NULL,
@@ -1396,8 +1343,6 @@ CREATE TABLE IF NOT EXISTS `operation_set_details` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table contains the information for User operation node';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.operation_type
 CREATE TABLE IF NOT EXISTS `operation_type` (
   `operation_type_id` int(11) NOT NULL,
@@ -1406,8 +1351,6 @@ CREATE TABLE IF NOT EXISTS `operation_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Operation types';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.record_components
 CREATE TABLE IF NOT EXISTS `record_components` (
   `record_node_id` int(11) NOT NULL,
@@ -1420,8 +1363,6 @@ CREATE TABLE IF NOT EXISTS `record_components` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='table to store the components of a record';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.record_key
 CREATE TABLE IF NOT EXISTS `record_key` (
   `record_node_id` int(11) NOT NULL,
@@ -1432,8 +1373,6 @@ CREATE TABLE IF NOT EXISTS `record_key` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for procedure policydb.reset_data
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `reset_data`(session_id_in INT(11))
@@ -1487,7 +1426,6 @@ SET SQL_SAFE_UPDATES = 1;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for table policydb.session
 CREATE TABLE IF NOT EXISTS `session` (
   `session_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1502,14 +1440,12 @@ CREATE TABLE IF NOT EXISTS `session` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table stores sessions created for users. This will be temperory data and rows will be deleted from this table depending on retention policy. ';
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for procedure policydb.set_property
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `set_property`(property_in varchar(200), property_value_in varchar(200), node_id int)
 BEGIN
 DECLARE count int;
--- Insert OR Update in NODE_PROPERTY table
+
                 SELECT count(*) INTO count FROM NODE_PROPERTY WHERE UPPER(property) = UPPER(property_in) and PROPERTY_NODE_ID = node_id;
     IF count > 0 THEN
       UPDATE NODE_PROPERTY P SET P.PROPERTY_VALUE = property_value_in WHERE P.PROPERTY_NODE_ID = node_id;
@@ -1519,7 +1455,6 @@ DECLARE count int;
 END//
 DELIMITER ;
 
-
 -- Dumping structure for table policydb.template
 CREATE TABLE IF NOT EXISTS `template` (
   `template_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1528,8 +1463,6 @@ CREATE TABLE IF NOT EXISTS `template` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.template_component
 CREATE TABLE IF NOT EXISTS `template_component` (
   `template_id` int(11) NOT NULL,
@@ -1542,8 +1475,6 @@ CREATE TABLE IF NOT EXISTS `template_component` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.template_key
 CREATE TABLE IF NOT EXISTS `template_key` (
   `template_id` int(11) NOT NULL,
@@ -1554,8 +1485,6 @@ CREATE TABLE IF NOT EXISTS `template_key` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
-
-
 -- Dumping structure for table policydb.user_detail
 CREATE TABLE IF NOT EXISTS `user_detail` (
   `user_node_id` int(11) NOT NULL,
@@ -1575,48 +1504,31 @@ CREATE TABLE IF NOT EXISTS `user_detail` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='user - U';
 
 -- Data exporting was unselected.
+-- Dumping structure for view policydb.acl_entry_view
+-- Removing temporary table and create final VIEW structure
+DROP TABLE IF EXISTS `acl_entry_view`;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `acl_entry_view` AS select `n1`.`node_id` AS `node_id`,`get_node_name`(`n1`.`node_id`) AS `user`,`allowed_operations`(`n1`.`node_id`,`n2`.`obj_id`) AS `allowed_ops`,`n2`.`obj_id` AS `obj_id`,`get_node_name`(`n2`.`obj_id`) AS `obj_name` from (`node` `n1` join `object_view` `n2`) where ((`n1`.`node_type_id` in (3,4)) and (`allowed_operations`(`n1`.`node_id`,`n2`.`obj_id`) is not null));
+
+-- Dumping structure for view policydb.acl_view
+-- Removing temporary table and create final VIEW structure
+DROP TABLE IF EXISTS `acl_view`;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `acl_view` AS select `acl_entry_view`.`obj_name` AS `obj_name`,group_concat(`acl_entry_view`.`user`,'-',`acl_entry_view`.`allowed_ops` separator ',') AS `group_concat(user,'-',allowed_ops)` from `acl_entry_view` group by `acl_entry_view`.`obj_name` order by `acl_entry_view`.`obj_name`;
 
 -- Dumping structure for view policydb.assignment_view
 -- Removing temporary table and create final VIEW structure
-CREATE 
-    ALGORITHM = UNDEFINED 
-    DEFINER = `root`@`localhost` 
-    SQL SECURITY DEFINER
-VIEW `policydb`.`assignment_view` AS
-    SELECT 
-        `policydb`.`assignment`.`start_node_id` AS `start_node_id`,
-        GET_NODE_NAME(`policydb`.`assignment`.`start_node_id`) AS `start_node_name`,
-        `policydb`.`assignment`.`end_node_id` AS `end_node_id`,
-        GET_NODE_NAME(`policydb`.`assignment`.`end_node_id`) AS `end_node_name`,
-        `policydb`.`assignment`.`depth` AS `depth`,
-        `policydb`.`assignment`.`assignment_path_id` AS `assignment_path_id`
-    FROM
-        `policydb`.`assignment`
-    WHERE
-        ((GET_NODE_TYPE(`policydb`.`assignment`.`start_node_id`) <> 7)
-            AND (GET_NODE_TYPE(`policydb`.`assignment`.`end_node_id`) <> 7)
-            AND (`policydb`.`assignment`.`depth` > 0))
-    ORDER BY `policydb`.`assignment`.`assignment_path_id` , `policydb`.`assignment`.`depth`;
-
+DROP TABLE IF EXISTS `assignment_view`;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `assignment_view` AS select `assignment`.`start_node_id` AS `start_node_id`,`GET_NODE_NAME`(`assignment`.`start_node_id`) AS `start_node_name`,`assignment`.`end_node_id` AS `end_node_id`,`GET_NODE_NAME`(`assignment`.`end_node_id`) AS `end_node_name`,`assignment`.`depth` AS `depth`,`assignment`.`assignment_path_id` AS `assignment_path_id` from `assignment` where ((`GET_NODE_TYPE`(`assignment`.`start_node_id`) <> 7) and (`GET_NODE_TYPE`(`assignment`.`end_node_id`) <> 7) and (`assignment`.`depth` > 0)) order by `assignment`.`assignment_path_id`,`assignment`.`depth`;
 
 -- Dumping structure for view policydb.association
 -- Removing temporary table and create final VIEW structure
-CREATE 
-    ALGORITHM = UNDEFINED 
-    DEFINER = `root`@`localhost` 
-    SQL SECURITY DEFINER
-VIEW `association` AS select
-                                (select b.end_node_id
-                                                from assignment b
-                                                where ((b.start_node_id = a.end_node_id)
-                                                                and isnull(b.assignment_path_id)
-                                                                and (b.depth = 1)
-                                                                and (GET_NODE_TYPE(b.start_node_id) = 7))) AS ua_id,
-            a.end_node_id AS opset_id,
-            a.start_node_id AS oa_id
-                from assignment a
-                where (isnull(a.assignment_path_id)
-                                and (a.depth = 1)
-                                and (GET_NODE_TYPE(a.end_node_id) = 7)) ;
+DROP TABLE IF EXISTS `association`;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `association` AS select (select `b`.`end_node_id` from `assignment` `b` where ((`b`.`start_node_id` = `a`.`end_node_id`) and isnull(`b`.`assignment_path_id`) and (`b`.`depth` = 1) and (`GET_NODE_TYPE`(`b`.`start_node_id`) = 7))) AS `ua_id`,`a`.`end_node_id` AS `opset_id`,`a`.`start_node_id` AS `oa_id` from `assignment` `a` where (isnull(`a`.`assignment_path_id`) and (`a`.`depth` = 1) and (`GET_NODE_TYPE`(`a`.`end_node_id`) = 7));
 
+-- Dumping structure for view policydb.object_view
+-- Removing temporary table and create final VIEW structure
+DROP TABLE IF EXISTS `object_view`;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `object_view` AS select `node`.`node_id` AS `obj_id` from `node` where (`node`.`node_type_id` in (5,6));
 
+/*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
+/*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -1,10 +1,18 @@
 package gov.nist.csd.pm.server.graph;
 
 import static gov.nist.csd.pm.common.constants.GlobalConstants.*;
+import static gov.nist.csd.pm.common.constants.MySQL_Statements.GET_ALL_NODES;
+import static gov.nist.csd.pm.common.constants.MySQL_Statements.select;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
 import gov.nist.csd.pm.common.config.ServerConfig;
 import gov.nist.csd.pm.common.constants.PM_NODE;
 
+import java.io.FileReader;
 import java.util.*;
 
 public class PmGraphManager {
@@ -16,96 +24,49 @@ public class PmGraphManager {
         graph = g;
     }
 
-    public void build(){
+    public void build() throws Exception {
         isBuilt = false;
         graph.reset();
 
-        HashSet<String> members = new HashSet<String>();
-        HashSet<String> containers = new HashSet<String>();
+        ArrayList<ArrayList<Object>> results = select(GET_ALL_NODES);
+        for (ArrayList<Object> r : results)
+        {
+            String name = (String) r.get(0);
+            String id = String.valueOf(r.get(1));
+            String type = (String) r.get(2);
 
-        //c
-        members = listToSet(ServerConfig.SQLDAO.getFromAttrs(PM_CONNECTOR_ID, null, 1));
-        graph.addNode(PM_CONNECTOR_ID, new PmGraphNode(PM_CONNECTOR_NAME, PM_NODE.CONN.value, PM_CONNECTOR_ID, members, containers, null));
-
-        //p
-        try {
-            List<Integer> pcs = ServerConfig.SQLDAO.getPolicies();
-            for(Integer i : pcs){
-                String name = ServerConfig.SQLDAO.getEntityName(i.toString(), PM_NODE.POL.value);
-                members = listToSet(ServerConfig.SQLDAO.getFromAttrs(i.toString(), null, 1));
-                containers = listToSet(ServerConfig.SQLDAO.getToAttrs(i.toString(), null, 1));
-                graph.addNode(i.toString(), new PmGraphNode(name, PM_NODE.POL.value, i.toString(), members, containers, null));
+            HashSet<String> children = listToSet(ServerConfig.SQLDAO.getFromAttrs(id, null, 1));
+            HashSet<String> parents = listToSet(ServerConfig.SQLDAO.getToAttrs(id, null, 1));
+            HashSet<String> operations = null;
+            if (type.equals(PM_NODE.OPSET.value))
+            {
+                operations = listToSetString(ServerConfig.SQLDAO.getOpsetOperations(id));
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+            graph.addNode(id, new PmGraphNode(name, type, id, children,
+                    parents, operations));
         }
 
-        //a
-        try {
-            List<Integer> uattrs = ServerConfig.SQLDAO.getUattrs();
-            for(Integer i : uattrs){
-                String name = ServerConfig.SQLDAO.getEntityName(i.toString(), PM_NODE.UATTR.value);
-                members = listToSet(ServerConfig.SQLDAO.getFromAttrs(i.toString(), null, 1));
-                containers = listToSet(ServerConfig.SQLDAO.getToAttrs(i.toString(), null, 1));
-                graph.addNode(i.toString(), new PmGraphNode(name, PM_NODE.UATTR.value, i.toString(), members, containers, null));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        //u
-        try {
-            List<Integer> users = ServerConfig.SQLDAO.getUsers();
-            for(Integer i : users){
-                String name = ServerConfig.SQLDAO.getEntityName(i.toString(), PM_NODE.USER.value);
-                members = listToSet(ServerConfig.SQLDAO.getFromAttrs(i.toString(), null, 1));
-                containers = listToSet(ServerConfig.SQLDAO.getToAttrs(i.toString(), null, 1));
-                graph.addNode(i.toString(), new PmGraphNode(name, PM_NODE.USER.value, i.toString(), members, containers, null));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        //b
-        try {
-            List<Integer> oattrs = ServerConfig.SQLDAO.getOattrs();
-            for(Integer i : oattrs){
-                String name = ServerConfig.SQLDAO.getEntityName(i.toString(), PM_NODE.OATTR.value);
-                members = listToSet(ServerConfig.SQLDAO.getFromAttrs(i.toString(), null, 1));
-                containers = listToSet(ServerConfig.SQLDAO.getToAttrs(i.toString(), null, 1));
-                graph.addNode(i.toString(), new PmGraphNode(name, PM_NODE.OATTR.value, i.toString(), members, containers, null));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        //o
-        try {
-            List<Integer> objs = ServerConfig.SQLDAO.getObjs();
-            for(Integer i : objs){
-                String name = ServerConfig.SQLDAO.getEntityName(i.toString(), PM_NODE.ASSOC.value);
-                members = listToSet(ServerConfig.SQLDAO.getFromAttrs(i.toString(), null, 1));
-                containers = listToSet(ServerConfig.SQLDAO.getToAttrs(i.toString(), null, 1));
-                graph.addNode(i.toString(), new PmGraphNode(name, PM_NODE.ASSOC.value, i.toString(), members, containers, null));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        //s
-        try {
-            List<Integer> opsets = ServerConfig.SQLDAO.getOpsets();
-            for(Integer i : opsets){
-                String name = ServerConfig.SQLDAO.getEntityName(i.toString(), PM_NODE.OPSET.value);
-                members = listToSet(ServerConfig.SQLDAO.getFromAttrs(i.toString(), null, 1));
-                containers = listToSet(ServerConfig.SQLDAO.getToAttrs(i.toString(), null, 1));
-                HashSet<String> ops = new HashSet<String>(ServerConfig.SQLDAO.getOpsetOperations(i.toString()));
-                graph.addNode(i.toString(), new PmGraphNode(name, PM_NODE.OPSET.value, i.toString(), members, containers, ops));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        //printGraph();
         isBuilt = true;
+    }
+
+    public static HashSet<Integer> listToSetInt(List<Integer> list)
+    {
+        HashSet<Integer> ret = new HashSet<Integer>();
+        for (Integer i : list)
+        {
+            ret.add(i);
+        }
+        return ret;
+    }
+
+    public static HashSet<String> listToSetString(List<String> list)
+    {
+        HashSet<String> ret = new HashSet<String>();
+        for (String s : list)
+        {
+            ret.add(s);
+        }
+        return ret;
     }
 
     public boolean isBuilt(){
@@ -138,6 +99,10 @@ public class PmGraphManager {
     }
 
     private HashSet<String> listToSet(List<Integer> list){
+        if(list == null){
+            return null;
+        }
+
         HashSet<String> sList = new HashSet<String>();
         for(Integer i : list){
             sList.add(i.toString());
@@ -182,5 +147,71 @@ public class PmGraphManager {
             allNodes.add(node);
         }
         return allNodes;
+    }
+
+    public PmGraphManager fromJson(String path){
+        graph.getGraph().clear();
+        try {
+            JsonReader reader = new Gson().newJsonReader(new FileReader(path));
+            reader.setLenient(true);
+            reader.beginObject();
+
+            while(reader.hasNext()){
+                String j = reader.nextName();
+                String name = reader.nextString();
+
+                j = reader.nextName();
+                String type = reader.nextString();
+
+                j = reader.nextName();
+                String id = reader.nextString();
+
+                j = reader.nextName();
+                reader.beginArray();
+                HashSet<String> members = new HashSet<>();
+                while(reader.hasNext()){
+                    String m = reader.nextString();
+                    members.add(m);
+                }
+                reader.endArray();
+
+                j = reader.nextName();
+                reader.beginArray();
+                HashSet<String> containers = new HashSet<>();
+                while(reader.hasNext()){
+                    String c = reader.nextString();
+                    containers.add(c);
+                }
+                reader.endArray();
+
+                HashSet<String> operations = new HashSet<>();
+                if(type.equals("s")){
+                    j = reader.nextName();
+                    reader.beginArray();
+                    while(reader.hasNext()){
+                        String o = reader.nextString();
+                        operations.add(o);
+                    }
+                    reader.endArray();
+                }
+
+                PmGraphNode node = new PmGraphNode(name, type, id, members, containers, operations.isEmpty()?null:operations);
+                graph.addNode(id, node);
+                reader.endObject();
+                reader.beginObject();
+            }
+        } catch (Exception e) {}
+        return this;
+    }
+
+    public void clearGraph(){
+        Iterator<String> iter = graph.getGraph().keySet().iterator();
+        while(iter.hasNext()){
+            String key = iter.next();
+            if(Integer.valueOf(graph.getNode(key).getId()) > 7){
+                graph.deleteNode(key);
+            }
+        }
+        isBuilt = false;
     }
 }

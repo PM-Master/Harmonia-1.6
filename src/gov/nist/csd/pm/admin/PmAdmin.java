@@ -1496,51 +1496,97 @@ public class PmAdmin extends JFrame implements ActionListener, TreeExpansionList
         if (f == null) {
             return;
         }
+        //File f = new File("conf/PMServerConfiguration.pm");
         lastSelectedFile = f;
         if (!f.exists() || !f.isFile() || !f.canRead()) {
             JOptionPane.showMessageDialog(this, "There is something wrong with the input file!");
             return;
         }
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(f));
-            List<String> delayedLines = new ArrayList<String>();
-            String sLine;
-            int nLineNo = 0;
-            while ((sLine = in.readLine()) != null) {
-                nLineNo++;
-                sLine = sLine.trim();
-                if (sLine.length() <= 0 || sLine.startsWith(PM_IMPORT_COMMENT_START)) {
-                    continue;
-                }
+        JProgressBar progressBar = new JProgressBar(0, 100);
+        progressBar.setIndeterminate(false);
+        progressBar.setStringPainted(true);
+        JLabel l = new JLabel("Importing...");
 
-                Packet cmd = makeCmd("interpretCmd", sLine);
-                Packet res = sslClient.sendReceive(cmd, null);
-                if (res.hasError()) {
-                    delayedLines.add(sLine);
-                    continue;
-                }
-            }
-            in.close();
+        JPanel panel = new JPanel(new BorderLayout(5, 5));
+        panel.add(l, BorderLayout.PAGE_START);
+        panel.add(progressBar, BorderLayout.CENTER);
+        panel.setBorder(BorderFactory.createEmptyBorder(11, 11, 11, 11));
 
-            for (int i = 0; i < delayedLines.size(); i++) {
-                sLine = delayedLines.get(i);
-                Packet cmd = makeCmd("interpretCmd", sLine);
-                Packet res = sslClient.sendReceive(cmd, null);
-                if (res.hasError()) {
-                    int ret = JOptionPane.showConfirmDialog(this, "Error Message: " + res.getErrorMessage() + "\nWould you like to halt execution now?", "ERROR", JOptionPane.YES_NO_OPTION);
-                    if(ret == JOptionPane.YES_OPTION){
-                        return;
+        final JDialog dialog = new JDialog();
+        dialog.getContentPane().add(panel);
+        dialog.setResizable(false);
+        dialog.pack();
+        dialog.setSize(350, dialog.getHeight());
+        dialog.setLocationRelativeTo(null);
+        dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        dialog.setAlwaysOnTop(false);
+        dialog.setVisible(true);
+        SwingWorker worker = new SwingWorker<String, String>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                try
+                {
+                    BufferedReader in = new BufferedReader(new FileReader(f));
+                    int numLines = 0;
+                    String sLine = "";
+                    while ((sLine = in.readLine()) != null) {
+                        numLines++;
                     }
-                    continue; // try to create as many entities as possible.
+                    in = new BufferedReader(new FileReader(f));
+                    List<String> delayedLines = new ArrayList<String>();
+                    sLine = "";
+                    int numLinesProcessed = 0;
+                    while ((sLine = in.readLine()) != null) {
+                        numLinesProcessed++;
+                        sLine = sLine.trim();
+                        if (sLine.length() <= 0 || sLine.startsWith(PM_IMPORT_COMMENT_START)) {
+                            continue;
+                        }
+                        l.setText("Processing cmd: " + sLine);
+                        int p = (int)(((double)numLinesProcessed /numLines)*100);
+                        setProgress(p);
+                        Packet cmd = makeCmd("interpretCmd", sLine);
+                        Packet res = sslClient.sendReceive(cmd, null);
+                        if (res.hasError()) {
+                            delayedLines.add(sLine);
+                            continue;
+                        }
+                    }
+                    in.close();
+                    for (String delayedLine : delayedLines) {
+                        sLine = delayedLine;
+                        Packet cmd = makeCmd("interpretCmd", sLine);
+                        Packet res = sslClient.sendReceive(cmd, null);
+                        if (res.hasError()) {
+                            int ret = JOptionPane.showConfirmDialog(PmAdmin.this, "Error Message: " + res.getErrorMessage() + "\nWould you like to halt execution now?", "ERROR", JOptionPane.YES_NO_OPTION);
+                            if (ret == JOptionPane.YES_OPTION) {
+                                return null;
+                            }
+                        }
+                    }
                 }
+                catch(Exception e){
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(PmAdmin.this, "Exception while importing data: "
+                            + e.getMessage());
+                }
+                return null;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Exception while importing data: "
-                    + e.getMessage());
-        }
+
+            @Override
+            public void done(){
+                dialog.dispose();
+                resetTree(null);
+            }
+        };
+        worker.addPropertyChangeListener(evt -> {
+            if ("progress" == evt.getPropertyName()) {
+                int progress = (Integer) evt.getNewValue();
+                progressBar.setValue(progress);
+            }
+        });
+        worker.execute();
         //updateGraph();
-        resetTree(null);
     }
 
     private void updateGraph(){
@@ -2249,6 +2295,7 @@ public class PmAdmin extends JFrame implements ActionListener, TreeExpansionList
             List<PmNode> children = rightClickedNode.getParent().getChildren();
             children.remove(rightClickedNode);
         }
+        rightClickedNode.invalidate();
     }
 
     private void doPolicyClasses() {

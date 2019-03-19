@@ -210,7 +210,7 @@ public class GlobalConstants {
 	public static final String PM_HOST = "h";
 	public static final String PM_OBJ_CLASS = "oc";
 	public static final String PM_OP = "op";
-	public static final String PM_OBJ = "ob";
+	public static final String PM_OBJ = "o";
 	public static final String PM_COMPL_OATTR = "cb";
 	public static final String PM_ASET = "as";
 	public static final String PM_SAC = "sac";
@@ -272,7 +272,7 @@ public class GlobalConstants {
 	public static final String PM_VOS_PRES_USER = "user";
 	
 	public static final EnvironmentFunction[] evrFunctions = {
-			new EnvironmentFunction("object_new", "ob", null),
+			new EnvironmentFunction("object_new", "o", null),
 			new EnvironmentFunction("oattr_with_name_of_active_attr", "b", "p"),
 			new EnvironmentFunction("oattr_corresponding_to_active_attr", "b", "p"),
 			new EnvironmentFunction("oattr_of_user_choice", "b", "p"),
@@ -290,8 +290,8 @@ public class GlobalConstants {
 			new EnvironmentFunction("pol_with_prop", "p", "k"),
 			new EnvironmentFunction("oattr_home_of_new_user", "b", null),
 			new EnvironmentFunction("oattr_home_of_user", "b", "u"),
-			new EnvironmentFunction("obj_rep_of_home_of_new_user", "ob", null),
-			new EnvironmentFunction("obj_rep_of_home_of_user", "ob", "u"),
+			new EnvironmentFunction("obj_rep_of_home_of_new_user", "o", null),
+			new EnvironmentFunction("obj_rep_of_home_of_user", "o", "u"),
 			new EnvironmentFunction("oattr_rep_of_home_of_new_user", "b", null),
 			new EnvironmentFunction("oattr_rep_of_home_of_user", "b", "u"),
 			new EnvironmentFunction("oattr_rep_of_discr_users", "b", null),
@@ -305,7 +305,7 @@ public class GlobalConstants {
 			new EnvironmentFunction("uattr_direct_ascs_of_uattr_except", "a", "a,a"),
 			new EnvironmentFunction("uattr_active_in_default_session_and_in_uattr",
 					"a", "a"), new EnvironmentFunction("prop_discr_users", "k", null),
-			new EnvironmentFunction("obj_rep_of_discr_users", "ob", null),
+			new EnvironmentFunction("obj_rep_of_discr_users", "o", null),
 			new EnvironmentFunction("oattr_witems_of_new_user", "b", null),
 			new EnvironmentFunction("prop_witems_of_new_user", "k", null),
 			new EnvironmentFunction("oattr_inbox_of_new_user", "b", null),
@@ -318,12 +318,12 @@ public class GlobalConstants {
 			new EnvironmentFunction("prop_inbox_of_user", "k", "u"),
 			new EnvironmentFunction("prop_outbox_of_new_user", "k", null),
 			new EnvironmentFunction("prop_outbox_of_user", "k", "u"),
-			new EnvironmentFunction("obj_rep_of_inbox_of_new_user", "ob", null),
-			new EnvironmentFunction("obj_rep_of_inbox_of_user", "ob", "u"),
+			new EnvironmentFunction("obj_rep_of_inbox_of_new_user", "o", null),
+			new EnvironmentFunction("obj_rep_of_inbox_of_user", "o", "u"),
 			new EnvironmentFunction("oattr_rep_of_inbox_of_new_user", "b", null),
 			new EnvironmentFunction("oattr_rep_of_inbox_of_user", "b", "u"),
-			new EnvironmentFunction("obj_rep_of_outbox_of_new_user", "ob", null),
-			new EnvironmentFunction("obj_rep_of_outbox_of_user", "ob", "u"),
+			new EnvironmentFunction("obj_rep_of_outbox_of_new_user", "o", null),
+			new EnvironmentFunction("obj_rep_of_outbox_of_user", "o", "u"),
 			new EnvironmentFunction("oattr_rep_of_outbox_of_new_user", "b", null),
 			new EnvironmentFunction("oattr_rep_of_outbox_of_user", "b", "u"),
 			new EnvironmentFunction("user_recipient", "u", null),
@@ -335,7 +335,7 @@ public class GlobalConstants {
 			new EnvironmentFunction("id_or_name_as_string", "k", "k"),
 			new EnvironmentFunction("name_of_rep_of_oattr", "b", "k"),
 			new EnvironmentFunction("oattr_rep_of_oattr", "b", "b"),
-			new EnvironmentFunction("obj_rep_of_oattr", "ob", "b"),
+			new EnvironmentFunction("obj_rep_of_oattr", "o", "b"),
 			new EnvironmentFunction("process_default", "proc", null)
 	};
 	

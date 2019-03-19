@@ -17,7 +17,7 @@ set PM_ROOT=C:\PM
 
 set MY_KEYSTORE=superKeystore
 
-set MY_TRUSTSTORE=clientTruststore
+set MY_TRUSTSTORE=pmserverTruststore
 
 set ENGINE_HOST=%computername%
 

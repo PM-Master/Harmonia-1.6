@@ -412,6 +412,9 @@ public class Utilities {
 	}
 
 	public Packet genCmd(String sCmdCode, String... sArgs){
+		for(String s : sArgs){
+			log(s);
+		}
 		Packet res;
 		try {
 			Packet cmd = makeCmd(sCmdCode, sArgs);
@@ -420,7 +423,7 @@ public class Utilities {
 				return null;
 			}
 			if (res.hasError()) {
-				return null;
+				return res;
 			}
 		} catch (Exception e) {
 			return null;
@@ -638,7 +641,7 @@ public class Utilities {
 			}
 			Packet res = engineClient.sendReceive(cmd, null);
 			if (res.hasError()) {
-				return null;
+				return res;
 			}
 			return res;
 		} catch (Exception e) {
@@ -975,16 +978,15 @@ public class Utilities {
 			Packet cmd = makeCmd("addSchemaOattr", null, oattrType, name, baseName, type);
 			Packet res = engineClient.sendReceive(cmd, null);
 			if (res == null) {
-				System.out.println("RES IS NULL!!!!!!!!!!!!!!!!");
 				return false;
 			}
 			if (res.hasError()) {
 				System.out.println(res.getErrorMessage());
-				System.out.println("RES HAS ERROR!!!!!!!!!!!!!!!!");
 				return false;
 			}
 		}catch(Exception e){
 			e.printStackTrace();
+			return false;
 		}
 		return true;
 	}

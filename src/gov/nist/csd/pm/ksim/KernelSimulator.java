@@ -1062,6 +1062,7 @@ public class KernelSimulator {
         if (cmd.size() <= 3) {
             return failurePacket(TOO_FEW_ARGUMENTS_ERROR_MSG);
         }
+        System.out.println(" ******************************* in doWriteObject3 ********************************* ");
         String sSessId = getArgument(cmd, 1);
         String sProcId = getArgument(cmd, 2);
         String sHandle = getArgument(cmd, 3);
@@ -1160,7 +1161,8 @@ public class KernelSimulator {
 
     private Packet generateEvent(String sSessId, String sProcId,
                                  String sEventName, String sObjName, String sObjId, String sObjClass) {
-        try {
+        System.out.println(" *********************************** in generateEvent() sEventName - " + sEventName + " sObjName -" + sObjName);
+    	try {
             Packet cmd = makeCmd(PROCESS_EVENT, sSessId,
                     (sProcId == null) ? "" : sProcId, sEventName, sObjName,
                     (sObjId == null) ? "" : sObjId, sObjClass);

@@ -234,7 +234,7 @@ public class ColumnPermEditor2 extends JDialog implements ActionListener, ListSe
 	/*private Packet getAllOps() {
 		try {
 			//Packet cmd = appBuilder.makeCmd("getAllOps");
-			Packet cmd = schemabuilder.util.makeCmd("getAllOps");
+			Packet cmd = schema.util.makeCmd("getAllOps");
 			Packet res = sslClient.sendReceive(cmd, null);
 			if (res.hasError()) {
 				JOptionPane.showMessageDialog(this, "Error in getAllOps: " + res.getErrorMessage());
@@ -251,7 +251,7 @@ public class ColumnPermEditor2 extends JDialog implements ActionListener, ListSe
 	private Packet getUserAttributes() {
 		try {
 			//Packet cmd = appBuilder.makeCmd("getUserAttributes");
-			Packet cmd = schemabuilder.util.makeCmd("getUserAttributes");
+			Packet cmd = schema.util.makeCmd("getUserAttributes");
 			Packet res = sslClient.sendReceive(cmd, null);
 			if (res.hasError()) {
 				JOptionPane.showMessageDialog(this, "Error in getUserAttributes: " + res.getErrorMessage());

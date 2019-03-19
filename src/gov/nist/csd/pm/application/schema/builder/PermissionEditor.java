@@ -440,7 +440,7 @@ public class PermissionEditor extends JPanel implements ActionListener, ListSele
 			return;
 		}
 		util.setBasePermissions(columnName, lSelectedNode.getType(), columnName, rSelectedNode.getType(), selectedPerms, selectedUattr, subgraphBox.isSelected() ? "yes" : "no");
-		//schemabuilder.addToPermissions(line);
+		//schema.addToPermissions(line);
 		this.setVisible(false);
 		JOptionPane.showMessageDialog(this, "Permissions set for Object Attribute " + columnName, "Success", JOptionPane.INFORMATION_MESSAGE);
 	}

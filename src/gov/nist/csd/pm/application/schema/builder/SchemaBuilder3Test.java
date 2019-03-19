@@ -49,7 +49,6 @@ public class SchemaBuilder3Test {
                 schema = new SchemaBuilder3(sessId, GlobalConstants.PM_DEFAULT_SIMULATOR_PORT, "", false);
             }
 
-            @Override
             public void test(JFrame f) {
                 List<JTextField> fields = Gooey.getComponents(schema, JTextField.class);
                 JTextField nameField = fields.get(0);
@@ -66,6 +65,12 @@ public class SchemaBuilder3Test {
                 JButton btnCreateSchema = Gooey.getButton(schema, "Create Schema");
                 btnCreateSchema.doClick();
             }
+
+			@Override
+			public void handle(JFrame arg0) {
+				// TODO Auto-generated method stub
+				
+			}
         });
     }
 
@@ -79,7 +84,6 @@ public class SchemaBuilder3Test {
                 btnCreateTable.doClick();
             }
 
-            @Override
             public void test(JFrame jf) {
                 List<JTextField> colFields = Gooey.getComponents(jf, JTextField.class);
                 int x = (int) (Math.random() * 10);
@@ -102,6 +106,12 @@ public class SchemaBuilder3Test {
                     btnClose.doClick();
                 }
             }
+
+			@Override
+			public void handle(JFrame arg0) {
+				// TODO Auto-generated method stub
+				
+			}
         });
     }
 
@@ -115,7 +125,6 @@ public class SchemaBuilder3Test {
                 btnCreateTable.doClick();
             }
 
-            @Override
             public void test(JFrame jf) {
                 List<JTextField> colFields = Gooey.getComponents(jf, JTextField.class);
                 colFields.get(0).setText(name + "-" + numTables);
@@ -139,6 +148,12 @@ public class SchemaBuilder3Test {
                     btnClose.doClick();
                 }
             }
+
+			@Override
+			public void handle(JFrame arg0) {
+				// TODO Auto-generated method stub
+				
+			}
         });
     }
 
@@ -151,7 +166,6 @@ public class SchemaBuilder3Test {
                 mngKeys.doClick();
             }
 
-            @Override
             public void test(JFrame jf) {
                 List<JComboBox> comboBoxes = Gooey.getComponents(jf, JComboBox.class);
                 JComboBox tableBox = comboBoxes.get(1);
@@ -172,6 +186,12 @@ public class SchemaBuilder3Test {
                 System.out.println("Closing key manager..." + jf);
                 Gooey.getButton(jf, "Close").doClick();
             }
+
+			@Override
+			public void handle(JFrame arg0) {
+				// TODO Auto-generated method stub
+				
+			}
         });
     }
 
@@ -183,10 +203,15 @@ public class SchemaBuilder3Test {
                 btnSubmit.doClick();
             }
 
-            @Override
             public void test(final JDialog j) {
                 Gooey.getButton(j, "Yes").doClick();
             }
+
+			@Override
+			public void handle(JDialog arg0) {
+				// TODO Auto-generated method stub
+				
+			}
         });
         schema.dispose();
     }
@@ -199,7 +224,6 @@ public class SchemaBuilder3Test {
                 btnSubmit.doClick();
             }
 
-            @Override
             public void test(final JDialog j) {
                 Gooey.capture(new GooeyDialog() {
                     @Override
@@ -207,14 +231,25 @@ public class SchemaBuilder3Test {
                         Gooey.getButton(j, "Yes").doClick();
                     }
 
-                    @Override
                     public void test(JDialog jDialog) {
                         assertTrue(jDialog.isVisible());
                         Gooey.getButton(jDialog, "OK").doClick();
                     }
+
+					@Override
+					public void handle(JDialog arg0) {
+						// TODO Auto-generated method stub
+						
+					}
                 });
 
             }
+
+			@Override
+			public void handle(JDialog arg0) {
+				// TODO Auto-generated method stub
+				
+			}
         });
         schema.dispose();
     }

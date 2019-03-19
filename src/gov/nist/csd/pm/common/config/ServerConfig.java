@@ -1,11 +1,7 @@
 package gov.nist.csd.pm.common.config;
 
 import gov.nist.csd.pm.server.PmEngine;
-//import gov.nist.csd.pm.server.dao.ActiveDirectory.ADGraph.ADGraphManager;
-import gov.nist.csd.pm.server.dao.ActiveDirectory.ActiveDirectoryDAO;
-//import gov.nist.csd.pm.server.dao.MySQL.ObligationDAO;
 
-//import gov.nist.csd.pm.server.dao.MySQL.ObligationDAO;
 import gov.nist.csd.pm.server.dao.MySQLDB.CommonSQLDAO;
 import gov.nist.csd.pm.server.dao.MySQLDB.ObligationDAO;
 import gov.nist.csd.pm.server.graph.DenyManager;
@@ -29,7 +25,6 @@ public class ServerConfig {
 	public static DirContext ctx;
 	public static String sThisDomain;
 	
-	public static ActiveDirectoryDAO ADDAO;
 	public static CommonSQLDAO SQLDAO;
 	public static ObligationDAO obligationDAO;
 	public static Connection conn;

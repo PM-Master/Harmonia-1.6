@@ -65,7 +65,7 @@ public class SQLParser implements Parser {
                         cols.add(s.split("`")[1]);
                     }
                 }
-                Table t = new Table(table, cols.toArray(new String[cols.size()]), null);
+                Table t = new Table(table, null, cols, null);
                 tables.add(t);
             }
         }

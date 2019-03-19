@@ -1,6 +1,7 @@
 package gov.nist.csd.pm.application.schema.builder;
 
 import gov.nist.csd.pm.application.schema.importing.ImportParser;
+import gov.nist.csd.pm.application.schema.importing.Table;
 import gov.nist.csd.pm.application.schema.tableeditor.Template;
 import gov.nist.csd.pm.application.schema.utilities.Utilities;
 import gov.nist.csd.pm.common.application.SysCaller;
@@ -37,6 +38,7 @@ import static gov.nist.csd.pm.common.constants.GlobalConstants.*;
  */
 public class SchemaBuilder3 extends JFrame {
 
+    private String schemaProp;
     public boolean modify = false;
     private boolean submitted = false;
     private boolean oattrEdit = false;
@@ -66,7 +68,7 @@ public class SchemaBuilder3 extends JFrame {
     private JTextField descrField;
     private JTextField otherField;
     private JLabel lblProperties_1;
-    private JTextField schemaPropField;
+    public JComboBox schemaPropField;
     private JButton btnSubmit;
     private JLabel lblKeys_1;
     private JTextField oattrOtherField;
@@ -109,8 +111,13 @@ public class SchemaBuilder3 extends JFrame {
 
             @Override
             public void windowClosing(WindowEvent we) {
-                SchemaBuilder3.this.checkIfCreatedAndDelete();
-                dispose();//terminate(0);
+                //SchemaBuilder.this.checkIfCreatedAndDelete();
+                //dispose();//terminate(0);
+                System.out.println("exiting Schema Builder");
+                if (!submitted && created) {
+                    doDelete(pcName, getSchemaType(PM_NODE.POL.value));
+                }
+                dispose();
             }
         });
 
@@ -152,12 +159,13 @@ public class SchemaBuilder3 extends JFrame {
         mntmNewMenuItem_2 = new JMenuItem("Delete");
         mntmNewMenuItem_2.addActionListener(new ActionListener(){
             public void actionPerformed(ActionEvent arg0) {
-                if(pcName == null){
+                /*if(pcName == null){
                     JOptionPane.showMessageDialog(null, "Please open a schema to be deleted");
                     return;
                 }
                 deleteTable(pcName, getSchemaType(PM_NODE.POL.value));
-                resetAll();
+                resetAll();*/
+                JOptionPane.showMessageDialog(SchemaBuilder3.this, "Not yet implemented");
             }
         });
         mnFile.add(mntmNewMenuItem_2);
@@ -213,7 +221,7 @@ public class SchemaBuilder3 extends JFrame {
 
         });
 
-        mnEdit.add(mntmBuilder);
+        //mnEdit.add(mntmBuilder);
 
 
 
@@ -314,52 +322,52 @@ public class SchemaBuilder3 extends JFrame {
         panel_5 = new JPanel();
         panel_5.setBorder(new EmptyBorder(5, 5, 5, 5));
         panel.add(panel_5, BorderLayout.CENTER);
-        SpringLayout sl_panel_5 = new SpringLayout();
-        panel_5.setLayout(sl_panel_5);
+        //SpringLayout sl_panel_5 = new SpringLayout();
+        //panel_5.setLayout(sl_panel_5);
 
         list = new JList();
-        sl_panel_5.putConstraint(SpringLayout.NORTH, list, 0, SpringLayout.NORTH, panel_5);
-        sl_panel_5.putConstraint(SpringLayout.WEST, list, 0, SpringLayout.WEST, panel_5);
-        panel_5.add(list);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, list, 0, SpringLayout.NORTH, panel_5);
+        //sl_panel_5.putConstraint(SpringLayout.WEST, list, 0, SpringLayout.WEST, panel_5);
+        //panel_5.add(list);
 
         lblSchemaName = new JLabel("Name:");
-        sl_panel_5.putConstraint(SpringLayout.NORTH, lblSchemaName, 0, SpringLayout.NORTH, list);
-        sl_panel_5.putConstraint(SpringLayout.WEST, lblSchemaName, 0, SpringLayout.WEST, list);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, lblSchemaName, 0, SpringLayout.NORTH, list);
+        //sl_panel_5.putConstraint(SpringLayout.WEST, lblSchemaName, 0, SpringLayout.WEST, list);
         panel_5.add(lblSchemaName);
 
         schemaNameField = new JTextField();
-        sl_panel_5.putConstraint(SpringLayout.NORTH, schemaNameField, 0, SpringLayout.NORTH, list);
-        sl_panel_5.putConstraint(SpringLayout.WEST, schemaNameField, 6, SpringLayout.EAST, lblSchemaName);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, schemaNameField, 0, SpringLayout.NORTH, list);
+        //sl_panel_5.putConstraint(SpringLayout.WEST, schemaNameField, 6, SpringLayout.EAST, lblSchemaName);
         panel_5.add(schemaNameField);
         schemaNameField.setColumns(10);
 
         lblDescription_1 = new JLabel("Description:");
-        sl_panel_5.putConstraint(SpringLayout.NORTH, lblDescription_1, 0, SpringLayout.NORTH, panel_5);
-        sl_panel_5.putConstraint(SpringLayout.WEST, lblDescription_1, 6, SpringLayout.EAST, schemaNameField);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, lblDescription_1, 0, SpringLayout.NORTH, panel_5);
+        //sl_panel_5.putConstraint(SpringLayout.WEST, lblDescription_1, 6, SpringLayout.EAST, schemaNameField);
         panel_5.add(lblDescription_1);
 
         descrField = new JTextField();
-        sl_panel_5.putConstraint(SpringLayout.NORTH, descrField, 0, SpringLayout.NORTH, list);
-        sl_panel_5.putConstraint(SpringLayout.WEST, descrField, 6, SpringLayout.EAST, lblDescription_1);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, descrField, 0, SpringLayout.NORTH, list);
+        //sl_panel_5.putConstraint(SpringLayout.WEST, descrField, 6, SpringLayout.EAST, lblDescription_1);
         panel_5.add(descrField);
         descrField.setColumns(10);
 
         JLabel lblNewLabel = new JLabel("Other Info:");
-        sl_panel_5.putConstraint(SpringLayout.NORTH, lblNewLabel, 1, SpringLayout.NORTH, list);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, lblNewLabel, 1, SpringLayout.NORTH, list);
         panel_5.add(lblNewLabel);
 
         otherField = new JTextField();
-        sl_panel_5.putConstraint(SpringLayout.WEST, otherField, 650, SpringLayout.WEST, panel_5);
-        sl_panel_5.putConstraint(SpringLayout.EAST, otherField, 0, SpringLayout.EAST, panel_5);
-        sl_panel_5.putConstraint(SpringLayout.EAST, lblNewLabel, -6, SpringLayout.WEST, otherField);
-        sl_panel_5.putConstraint(SpringLayout.NORTH, otherField, 0, SpringLayout.NORTH, schemaNameField);
+        //sl_panel_5.putConstraint(SpringLayout.WEST, otherField, 650, SpringLayout.WEST, panel_5);
+        //sl_panel_5.putConstraint(SpringLayout.EAST, otherField, 0, SpringLayout.EAST, panel_5);
+        //sl_panel_5.putConstraint(SpringLayout.EAST, lblNewLabel, -6, SpringLayout.WEST, otherField);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, otherField, 0, SpringLayout.NORTH, schemaNameField);
         panel_5.add(otherField);
-        otherField.setColumns(15);
+        otherField.setColumns(10);
 
         btnCreate = new JButton("Create Schema");
-        sl_panel_5.putConstraint(SpringLayout.WEST, btnCreate, 568, SpringLayout.WEST, panel_5);
-        sl_panel_5.putConstraint(SpringLayout.SOUTH, btnCreate, 0, SpringLayout.SOUTH, panel_5);
-        sl_panel_5.putConstraint(SpringLayout.EAST, btnCreate, 0, SpringLayout.EAST, panel_5);
+        //sl_panel_5.putConstraint(SpringLayout.WEST, btnCreate, 568, SpringLayout.WEST, panel_5);
+        //sl_panel_5.putConstraint(SpringLayout.SOUTH, btnCreate, 0, SpringLayout.SOUTH, panel_5);
+        //sl_panel_5.putConstraint(SpringLayout.EAST, btnCreate, 0, SpringLayout.EAST, panel_5);
         btnCreate.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 createSchema();
@@ -368,22 +376,24 @@ public class SchemaBuilder3 extends JFrame {
         panel_5.add(btnCreate);
 
         lblProperties_1 = new JLabel("Properties:");
-        sl_panel_5.putConstraint(SpringLayout.EAST, descrField, -6, SpringLayout.WEST, lblProperties_1);
-        sl_panel_5.putConstraint(SpringLayout.NORTH, lblProperties_1, 0, SpringLayout.NORTH, list);
-        panel_5.add(lblProperties_1);
+        //sl_panel_5.putConstraint(SpringLayout.EAST, descrField, -6, SpringLayout.WEST, lblProperties_1);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, lblProperties_1, 0, SpringLayout.NORTH, list);
+        //panel_5.add(lblProperties_1);
 
 		/*lblKeys = new JLabel("Keys:");
 		sl_panel_5.putConstraint(SpringLayout.WEST, lblKeys, 0, SpringLayout.WEST, lblDescription_1);
 		sl_panel_5.putConstraint(SpringLayout.SOUTH, lblKeys, -5, SpringLayout.SOUTH, panel_5);
 		panel_5.add(lblKeys);*/
 
-        schemaPropField = new JTextField();
-        sl_panel_5.putConstraint(SpringLayout.EAST, lblProperties_1, -6, SpringLayout.WEST, schemaPropField);
-        sl_panel_5.putConstraint(SpringLayout.WEST, schemaPropField, 465, SpringLayout.WEST, panel_5);
-        sl_panel_5.putConstraint(SpringLayout.EAST, schemaPropField, -6, SpringLayout.WEST, lblNewLabel);
-        sl_panel_5.putConstraint(SpringLayout.NORTH, schemaPropField, 0, SpringLayout.NORTH, schemaNameField);
-        panel_5.add(schemaPropField);
-        schemaPropField.setColumns(10);
+        schemaPropField = new JComboBox(new String[]{"File System", "Database"});
+        //sl_panel_5.putConstraint(SpringLayout.EAST, lblProperties_1, -6, SpringLayout.WEST, schemaPropField);
+        //sl_panel_5.putConstraint(SpringLayout.WEST, schemaPropField, 465, SpringLayout.WEST, panel_5);
+        //sl_panel_5.putConstraint(SpringLayout.EAST, schemaPropField, -6, SpringLayout.WEST, lblNewLabel);
+        //sl_panel_5.putConstraint(SpringLayout.NORTH, schemaPropField, 0, SpringLayout.NORTH, schemaNameField);
+        //panel_5.add(schemaPropField);
+        schemaPropField.addActionListener(e -> {
+            schemaProp = (String) schemaPropField.getSelectedItem();
+        });
 
         JPanel panel_1 = new JPanel();
         panel_1.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0),
@@ -599,9 +609,9 @@ public class SchemaBuilder3 extends JFrame {
             otherField.setText(pcName);
         }
 
-        String prop = schemaPropField.getText();
+        String prop = (String) schemaPropField.getSelectedItem();
         if(prop == null || prop.length() == 0){
-            JOptionPane.showMessageDialog(null, "Please include at least one property for this schema.");
+            JOptionPane.showMessageDialog(null, "Please select a property.");
             return;
         }
 
@@ -615,7 +625,7 @@ public class SchemaBuilder3 extends JFrame {
         System.out.println(pcName);
         schemaNode = new PmNode(PmNodeType.POLICY, pcName);
 
-        boolean bRes = util.createBaseOattr(getSchemaType(PM_NODE.POL.value), getSchemaType(PM_NODE.OATTR.value), pcName, descr, other, prop);
+        boolean bRes = util.createBaseOattr(getSchemaType(PM_NODE.POL.value), getSchemaType(PM_NODE.OATTR.value), pcName, descr, other, "storage=file");
         if(!bRes){
             JOptionPane.showMessageDialog(null, "Could not create schema " + pcName, "ERROR", JOptionPane.ERROR_MESSAGE);
             resetAll();
@@ -647,54 +657,65 @@ public class SchemaBuilder3 extends JFrame {
         int ret = JOptionPane.showConfirmDialog(this, "Once you submit the schema you won't be able to change it.\nDo you still want to continue?");
         if(ret != JOptionPane.OK_OPTION)return;
 
-        if(!setKeys){
+        if(!setKeys && !connecting){
             JOptionPane.showMessageDialog(this, "You must set keys for the tables to create a template");
             return;
         }
 
-        List<String> tables = getSchemaTables();
+        //List<String> tables = getSchemaTables();
+        System.out.println("tables: " + tables);
 
-        if(keyMap.size() != tables.size()){
+        if(keyMap.size() != tables.size() && !connecting){
             JOptionPane.showMessageDialog(this, "You must set keys for all of the tables to create a template");
             return;
         }
-
-        log(modify());
         pcName = schemaNameField.getText();
-
-        Collections.reverse(tables);
-
-        for(String table : tables){
-            List<PmNode> contNodes = getAllNodes(new PmNode(
-                    getSchemaType(PM_NODE.OATTR.value),
-                    sysCaller.getIdOfEntityWithNameAndType(table, getSchemaType(PM_NODE.OATTR.value)),
-                    table,
-                    new PmNodeChildDelegate(util.sslClient, sessionId, PmGraphDirection.UP, PmGraphType.OBJECT_ATTRIBUTES)));
-            List<String> conts = new ArrayList<String>();
-            for(PmNode n : contNodes){
-                conts.add(n.getName());
-            }
-            String sKeys = keyMap.get(table);
-            String pieces[] = sKeys.split(GlobalConstants.PM_FIELD_DELIM);
-            List<String> keys = new ArrayList<String>();
-            for(String s : pieces){
-                keys.add(s);
-            }
-            System.out.println("Adding template " + table + " with conts " + conts + " with keys " + keys);
-            Packet res = util.addTemplate(table, conts, keys);
-            if(res == null || res.hasError()){
-                JOptionPane.showMessageDialog(null, "Could not create template");
-                checkIfCreatedAndDelete();
-                resetAll();
-                return;
+        System.out.println(connecting);
+        if(!connecting) {
+            Collections.reverse(tables);
+            for (Table table : tables) {
+                List<PmNode> contNodes = getAllNodes(new PmNode(
+                        getSchemaType(PM_NODE.OATTR.value),
+                        sysCaller.getIdOfEntityWithNameAndType(table.getTable(), getSchemaType(PM_NODE.OATTR.value)),
+                        table.getTable(),
+                        new PmNodeChildDelegate(util.sslClient, sessionId, PmGraphDirection.UP, PmGraphType.OBJECT_ATTRIBUTES)));
+                List<String> conts = new ArrayList<String>();
+                for (PmNode n : contNodes) {
+                    conts.add(n.getName());
+                }
+                String sKeys = keyMap.get(table);
+                String pieces[] = sKeys.split(GlobalConstants.PM_FIELD_DELIM);
+                List<String> keys = new ArrayList<String>();
+                for (String s : pieces) {
+                    keys.add(s);
+                }
+                System.out.println("Adding template " + table + " with conts " + conts + " with keys " + keys);
+                Packet res = util.addTemplate(table.getTable(), conts, keys);
+                if (res == null || res.hasError()) {
+                    JOptionPane.showMessageDialog(null, "Could not create template");
+                    //checkIfCreatedAndDelete();
+                    //resetAll();
+                    return;
+                }
             }
         }
 
         submitted = true;
         opened = true;
         created = false;
+        disableSchemaButtons();
+    }
+
+    public void submitted(){
+        submitted = true;
+    }
+
+    public void disableSchemaButtons(){
         btnSubmit.setEnabled(false);
         btnManageKeys.setEnabled(false);
+        btnCreateTable.setEnabled(false);
+        btnDeleteTable.setEnabled(false);
+        btnCreate.setEnabled(false);
     }
 
     private boolean setKeys = false;
@@ -707,9 +728,9 @@ public class SchemaBuilder3 extends JFrame {
         JPanel contentPane = new JPanel();
         contentPane.setLayout(new BorderLayout(5, 5));
 
+        System.out.println("TABLES>>" + tables);
         //select a table panel
-        List<String> tempConts = getSchemaTables();
-        if(tempConts == null || tempConts.size() < 1){
+        if(tables == null || tables.size() < 1){
             JOptionPane.showMessageDialog(this, "You need to create tables first");
             return;
         }
@@ -719,8 +740,8 @@ public class SchemaBuilder3 extends JFrame {
         selectTablePanel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0),
                 BorderFactory.createTitledBorder("Select a table:")));
         final DefaultComboBoxModel tableModel = new DefaultComboBoxModel();
-        for(String s : tempConts){
-            tableModel.addElement(s);
+        for(Table t : tables){
+            tableModel.addElement(t.getTable());
         }
         final JComboBox tableList = new JComboBox(tableModel);
 
@@ -734,7 +755,7 @@ public class SchemaBuilder3 extends JFrame {
                 keyModel.removeAllElements();
                 model.removeAllElements();
                 selectedTable = (String)tableList.getSelectedItem();
-                PmNode parent = new PmNode(
+                /*PmNode parent = new PmNode(
                         getSchemaType(PM_NODE.OATTR.value),
                         sysCaller.getIdOfEntityWithNameAndType(selectedTable, getSchemaType(PM_NODE.OATTR.value)),
                         selectedTable,
@@ -743,6 +764,19 @@ public class SchemaBuilder3 extends JFrame {
                 System.out.println(tempConts);
                 for(int i = 0; i < tempConts.size(); i++){
                     model.addElement(tempConts.get(i).getName());
+                }*/
+                Table table = null;
+                for(Table t : tables){
+                    if(t.getTable().equalsIgnoreCase(selectedTable)){
+                        table = t;
+                    }
+                }
+
+                if(table == null)return;
+
+                List<String> columns = table.getColumns();
+                for(String c : columns){
+                    model.addElement(c);
                 }
 
                 String value = keyMap.get(selectedTable);
@@ -911,6 +945,15 @@ public class SchemaBuilder3 extends JFrame {
         return tableNames;
     }
 
+    private List<Table> tables;
+    public void setTables(List<Table> tables){
+        this.tables = tables;
+    }
+
+    public List<Table> getTables(){
+        return tables;
+    }
+
     /**
      *
      */
@@ -970,7 +1013,7 @@ public class SchemaBuilder3 extends JFrame {
         schemaNameField.setText("");
         descrField.setText("");
         otherField.setText("");
-        schemaPropField.setText("");
+        schemaPropField.setSelectedIndex(0);
 
         btnRSV.setEnabled(false);
 
@@ -996,7 +1039,7 @@ public class SchemaBuilder3 extends JFrame {
         created = input;
     }
 
-    private void checkIfCreatedAndDelete(){
+    public void checkIfCreatedAndDelete(){
         if(created){
             deleteTable(pcName, getSchemaType(PM_NODE.POL.value));
             //deletePC(pcName);
@@ -1131,18 +1174,18 @@ public class SchemaBuilder3 extends JFrame {
 
         schemaNameField.setText(pcName);
 
-        schemaPropField.setText(null);
+        //schemaPropField.setText(null);
         String prop = "";
         for (int i = 3; i < attrInfo.size()-1; i++) {
             prop += attrInfo.get(i) + ", ";
             log("PROP: " + prop);
 
         }
-        prop += attrInfo.get(attrInfo.size()-1);
-        prop = schemaPropField.getText() + prop;
+        /*prop += attrInfo.get(attrInfo.size()-1);
+        //prop = schemaPropField.getText() + prop;
         if(prop != null && !prop.equals("null")) {
             schemaPropField.setText(prop);
-        }
+        }*/
 
         descrField.setText(attrInfo.get(1));
         otherField.setText(attrInfo.get(2));
@@ -1458,11 +1501,6 @@ public class SchemaBuilder3 extends JFrame {
         return otherField.getText();
     }
 
-
-    public void disableCreateButton() {
-        btnCreate.setEnabled(false);
-    }
-
     public SysCaller getSysCaller(){
         return sysCaller;
     }
@@ -1471,10 +1509,10 @@ public class SchemaBuilder3 extends JFrame {
         return util;
     }
 
-    public boolean createPCSchema(String polType, String oaType){
+    public boolean createPCSchema(String polType, String oaType, String storage){
         System.out.println("called createPCSChema");
         System.out.println(pcName);
-        boolean bRes = util.createBaseOattr(polType, oaType, pcName, pcName, pcName, pcName);
+        boolean bRes = util.createBaseOattr(polType, oaType, pcName, pcName, pcName, storage);
         if(!bRes){
             JOptionPane.showMessageDialog(null, "Could not create schema " + pcName, "ERROR", JOptionPane.ERROR_MESSAGE);
             return false;
@@ -1503,7 +1541,7 @@ public class SchemaBuilder3 extends JFrame {
     }
 
     public static void main(String[] args){
-        //log("main called in schemabuilder 2");
+        //log("main called in schema 2");
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("-session")) {
                 sessid = args[++i];
@@ -1570,7 +1608,7 @@ public class SchemaBuilder3 extends JFrame {
                         JOptionPane.showMessageDialog(null, "Selected node is not an object attribute");
                         return;
                     }else{
-                        int ret = JOptionPane.showConfirmDialog(SchemaBuilder3.this, "You are about to overwrite " + node.getName(), "Alert", JOptionPane.OK_CANCEL_OPTION);
+                        int ret = JOptionPane.showConfirmDialog(SchemaBuilder.this, "You are about to overwrite " + node.getName(), "Alert", JOptionPane.OK_CANCEL_OPTION);
                         if(ret != JOptionPane.OK_OPTION){
                             return;
                         }
@@ -1735,7 +1773,7 @@ public class SchemaBuilder3 extends JFrame {
                 otherField.setText(schemaName);
             }
 
-            schemaPropField.getText();
+            //schemaPropField.getText();
 
 
             //Creating schema oattr

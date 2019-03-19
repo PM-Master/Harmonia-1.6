@@ -1,6 +1,5 @@
 package gov.nist.csd.pm.server.dao.MySQLDB;
 
-import gov.nist.csd.pm.admin.UserEditor;
 import gov.nist.csd.pm.common.config.ServerConfig;
 import gov.nist.csd.pm.common.constants.*;
 import gov.nist.csd.pm.common.net.ItemType;
@@ -15,16 +14,12 @@ import gov.nist.csd.pm.server.packet.SQLPacketHandler;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
-import javax.swing.*;
 
 import java.io.*;
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.DateFormat;
@@ -38,15 +33,8 @@ import static gov.nist.csd.pm.common.constants.MySQL_Statements.*;
 import static gov.nist.csd.pm.common.constants.MySQL_StoredProcedures.*;
 import static gov.nist.csd.pm.common.net.Packet.dnrPacket;
 import static gov.nist.csd.pm.common.net.Packet.failurePacket;
+import static gov.nist.csd.pm.common.net.Packet.getSuccessPacket;
 
-/**
- * This class is supposed to be used by the PM Engine
- * for interfacing the Active Directory
- * (Similar one will be done for the )
- *
- *
- * @author DC&Gopi
- */
 
 public class CommonSQLDAO{
 
@@ -196,7 +184,7 @@ public class CommonSQLDAO{
     // COMMON METHODS
     // *****************************************************************************************************
     /*public List<Integer> getAllAccessibleNodes(Integer uaId){
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         try {
 
             if(getEntityName(uaId.toString(), PM_NODE.USER.value).equals("super")){
@@ -211,7 +199,7 @@ public class CommonSQLDAO{
             e.printStackTrace();
             return null;
         }finally{
-            long end = System.currentTimeMillis();
+            long end = System.nanoTime();
             System.out.println("getAllAccessibleNodes: " + (end - start));
         }
     }
@@ -398,14 +386,19 @@ public class CommonSQLDAO{
     }
 
     public Packet createSchemaPC(String sSessId, String sProcId, String policyType,
-                                 String oattrType, String sPolicyName, String sUattr){
+                                 String oattrType, String sPolicyName, String sUattr, String[] props){
         String sCmd;
-        Packet res = new Packet();
+        Packet res;
         try {
             sCmd = "add|" + policyType + "|" + sPolicyName + "|c|PM";
             res = interpretCmd(sSessId, sCmd);
             if(res.hasError()){
                 return res;
+            }
+
+            for(String s : props){
+                sCmd = "add|prop|" + s + "|p|" + sPolicyName;
+                res = interpretCmd(sSessId, sCmd);
             }
 
             if(!entityNameExists(sUattr, PM_NODE.UATTR.value)){
@@ -446,18 +439,6 @@ public class CommonSQLDAO{
 
             String sRepOaId = getOrCreateOattrRepresentingEntity(sEntId, sEntType,
                     null, sEntId, sEntType, true);
-
-			/*res =  createOpsetBetween(sSessId, sProcId, opers,
-						getEntityId(sUattr, "ua"), sRepOaId);
-				if (res.hasError()) {
-					return res;
-				}*/
-
-			/*sCmd = "add|ob|" + sPolicyName + " rep|Object Attribute|yes|" + sPolicyName + "|ignored|b|" + sPolicyName;
-				res = interpretCmd(sSessId, sCmd);
-				if(res.hasError()){
-					return res;
-				}*/
 
             String id = UtilMethods.generateRandomName();
             sCmd = "add|s|" + id + "|oc|ignored|a|" + sUattr;
@@ -531,28 +512,6 @@ public class CommonSQLDAO{
             if(res.hasError()){
                 return res;
             }
-
-			/*id = UtilMethods.generateRandomName();
-		sCmd = "add|s|" + id + "|oc|ignored|a|" + sUattr;
-		System.out.println(sCmd);
-		res = interpretCmd(sSessId, sCmd);
-		if(res.hasError()){
-			return res;
-		}
-
-		sCmd = "asg|s|" + id + "|p|" + sPolicyName;
-		System.out.println(sCmd);
-		res = interpretCmd(sSessId, sCmd);
-		if(res.hasError()){
-			return res;
-		}
-
-		sCmd = "add|op|" + PM_ALL_OPS_NAME + "|s|" + id;
-		System.out.println(sCmd);
-		res = interpretCmd(sSessId, sCmd);
-		if(res.hasError()){
-			return res;
-		}*/
         } catch (Exception e) {
             e.printStackTrace();
             return failurePacket(e.getMessage());
@@ -1107,7 +1066,7 @@ public class CommonSQLDAO{
             }
         }catch(Exception e){
             e.printStackTrace();
-            res = SQLPacketHandler.getFailurePacket("Could not asign " + sId1 + " and " + sId2 + ". " + e.getMessage());
+            res = SQLPacketHandler.getFailurePacket("Could not assign " + sId1 + " and " + sId2 + ". " + e.getMessage());
         }
         return res;
     }
@@ -1870,7 +1829,7 @@ public class CommonSQLDAO{
 					sPdc = "1";
 				}
     		}*/
-            String userId = getSessionUserId(sSessId);
+            String userId = getSessionUserIdInternal(sSessId);
             if (userId == null) {
                 return failurePacket("No user for the session");
             }
@@ -2081,6 +2040,12 @@ public class CommonSQLDAO{
                 if(opsetId == null){
                     return fail();
                 }
+
+                try{
+                    insert(ADD_NODE_OPSET, Integer.valueOf(sBaseId), opsetId);
+                }catch(Exception e){
+                }
+
                 Packet res = new Packet();
                 res.addItem(ItemType.RESPONSE_TEXT, sOpset
                         + PM_FIELD_DELIM + opsetId);
@@ -2580,7 +2545,7 @@ public class CommonSQLDAO{
         System.out.println("    process id: " + sCrtProcId);
 
         try {
-            if (sUserId == null || sUserId.length() == 0) sUserId = getSessionUserId(sCrtSessId);
+            if (sUserId == null || sUserId.length() == 0) sUserId = getSessionUserIdInternal(sCrtSessId);
             String sUserName = graphMgr.getGraph().getNode(sUserId).getName();
             System.out.println("    user id: " + sUserId);
             System.out.println("    user name: " + sUserName);
@@ -2884,7 +2849,7 @@ public class CommonSQLDAO{
         }
         Packet res = new Packet();
         try {
-            String sUserId = getSessionUserId(sSessId);
+            String sUserId = getSessionUserIdInternal(sSessId);
             if (sUserId == null) {
                 return failurePacket("Couldn't find session or its user id");
             }
@@ -4108,7 +4073,7 @@ public class CommonSQLDAO{
             params = new MySQL_Parameters();
             params.addParam(ParamType.STRING, sHost);
             params.addParam(ParamType.STRING, "Schema Builder");
-            params.addParam(ParamType.STRING, "gov.nist.csd.pm.application.schema.builder.SchemaBuilder3");
+            params.addParam(ParamType.STRING, "gov.nist.csd.pm.application.schema.builder.SchemaBuilder");
             params.addParam(ParamType.STRING, sSchemaPath);
             params.addParam(ParamType.STRING, "Schema Builder>>");
             executeStoredProcedure(SET_APP_PATH, params);
@@ -4159,7 +4124,7 @@ public class CommonSQLDAO{
         try {
             sHost = getSessionHostId(sSessId);
 
-            sUserId = getSessionUserId(sSessId);
+            sUserId = getSessionUserIdInternal(sSessId);
             params.addParam(ParamType.INT, sHost);
             params.addParam(ParamType.INT, sUserId);
 
@@ -4378,6 +4343,151 @@ public class CommonSQLDAO{
         }
     }
 
+    public Packet addDenyAdmin(String sSessId, Deny deny){
+        try {
+            Integer denyId = addDenyInternalAdmin(deny);
+            if(denyId == null){
+                return fail();
+            }
+            Packet result = new Packet();
+            result.addItem(ItemType.RESPONSE_TEXT, deny.getName()
+                    + PM_FIELD_DELIM + denyId);
+            return result;
+        } catch (Exception e) {
+            return failurePacket(e.getMessage());
+        }
+    }
+    public Integer addDenyInternalAdmin(Deny deny) throws Exception {
+        System.out.println(deny);
+
+        boolean newDeny = false;
+
+        ArrayList<String> result;
+        // First check whether the deny exists.
+        String sDenyName = deny.getName();
+        String sDenyType = deny.getDenyType();
+        int procId = deny.getProcessId();
+        int userId = deny.getUserId();
+        int sessId = deny.getSessionId();
+        boolean bInters = deny.isIntersection();
+
+        String sDenyId = getEntityId(sDenyName, PM_DENY);
+        if (sDenyId != null) {
+            // A deny constraint with that name already exists.
+            // Do a series of checks.
+            result = getDenySimpleInfo(sDenyId);
+            // The information returned by getDenySimpleInfo has the following
+            // format:
+            // item 0: <deny name>:<deny id>
+            // item 1: <deny type>:<denyto name>:<denyto id>:<is intersection>
+            if (result == null) {
+                return null;
+            }
+            String sLine = result.get(1);
+            String[] pieces = sLine.split(PM_FIELD_DELIM);
+
+            if (sDenyType != null && !sDenyType.equals(pieces[0])) {
+                errorMessage = "In deny, the type does not match its registered type!";
+                return null;
+            }
+
+            if(sDenyType.equals(PM_DENY_PROCESS)){
+                if(procId < 0){
+                    errorMessage = "The process id cannot be null for a process deny";
+                    return null;
+                }
+            }else{
+                if(userId < 0){
+                    errorMessage = "The user id cannot be null for a user id deny";
+                    return null;
+                }
+            }
+        } else { // New constraint.
+            newDeny = true;
+            // A series of checks.
+            if (sDenyType == null
+                    || (!sDenyType.equalsIgnoreCase(PM_DENY_USER_ID)
+                    && !sDenyType.equalsIgnoreCase(PM_DENY_USER_SET)
+                    && !sDenyType.equalsIgnoreCase(PM_DENY_SESSION)
+                    && !sDenyType.equalsIgnoreCase(PM_DENY_PROCESS)
+                    && !sDenyType.equalsIgnoreCase(PM_DENY_INTRA_SESSION) && !sDenyType.equalsIgnoreCase(PM_DENY_ACROSS_SESSIONS))) {
+                errorMessage = "Null or invalid deny type!";
+                return null;
+            }
+            if(sDenyType.equals(PM_DENY_PROCESS)){
+                if(procId < 0){
+                    errorMessage = "The process id cannot be null for a process deny";
+                    return null;
+                }
+            }else{
+                if(userId < 0){
+                    errorMessage = "The user id cannot be null for a user id deny";
+                    return null;
+                }
+            }
+
+            //create the new deny
+            if(sDenyType.equals(PM_DENY_PROCESS)){
+                insert(ADD_PROCESS_DENY, sDenyName, sDenyType, procId, bInters ? 1 : 0);
+            }else{
+                insert(ADD_DENY, sDenyName, sDenyType, userId, bInters ? 1 : 0);
+            }
+
+            sDenyId = getEntityId(sDenyName, PM_DENY);
+            if (sDenyId == null) {
+                errorMessage = "error creating deny constraint";
+                return null;
+            }
+
+            //ADD deny in denies graph
+            denyMgr.addDeny(deny);
+            denyMgr.printDenies();
+        }
+
+        if(!newDeny){
+            delete(DELETE_DENY_OPS, sDenyId);
+            delete(DELETE_DENY_OBJECTS, sDenyId);
+        }
+
+        HashSet<String> ops = deny.getOps();
+        if (ops != null) {
+            for(String op : ops) {
+                if (!denyHasOp(sDenyId, op)) {
+                    // Add the operation.
+
+                    MySQL_Parameters params = new MySQL_Parameters();
+                    params.addParam(ParamType.INT, Integer.valueOf(sDenyId));
+                    params.addParam(ParamType.STRING, op);
+                    insert(ADD_DENY_OP, params);
+                }
+            }
+        }
+
+        HashSet<DenyObject> objects = deny.getObjects();
+        if (objects != null) {
+            for(DenyObject o : objects) {
+                String sOattrId = o.getId();
+                if (!denyHasOattr(sDenyId, o.getId())) {
+                    MySQL_Parameters params = new MySQL_Parameters();
+                    params.addParam(ParamType.INT, Integer.valueOf(sDenyId));
+                    params.addParam(ParamType.INT, Integer.valueOf(sOattrId));
+                    params.addParam(ParamType.INT, o.isCompliment() ? 1 : 0);
+                    insert(ADD_DENY_OBJ_ID, params);
+                }
+            }
+        }
+
+        if(newDeny){
+            deny.setId(sDenyId);
+            denyMgr.addDeny(deny);
+        }else{
+            deny.setId(sDenyId);
+            denyMgr.updateDeny(deny);
+        }
+        return Integer.valueOf(sDenyId);
+    }
+
+
     // The command parameters are: constraint name, operation, oattr name, oattr
     // id.
     // Note that the oattr name and id are prefixed with '!' if they designate
@@ -4417,7 +4527,7 @@ public class CommonSQLDAO{
             String sId = getEntityId(sName, sType);
             System.out.println("sId: " + sId);
             if (sId == null) {
-                return failurePacket("No such entity or type!");
+                return failurePacket("Could not find entity with name: " + sName + " and type: " + sType);
             }
             result.addItem(ItemType.RESPONSE_TEXT, sId);
         } catch (Exception e) {
@@ -4589,9 +4699,9 @@ public class CommonSQLDAO{
                                 String sObjName, String sObjClass, String sObjType,
                                 String sContainers, String sPerms, String sSender,
                                 String sReceiver, String sSubject, String sAttached) {
-        if (!sObjClass.equalsIgnoreCase(PM_CLASS_FILE_NAME)) {
+        /*if (!sObjClass.equalsIgnoreCase(PM_CLASS_FILE_NAME)) {
             return failurePacket("Creation of non-File objects not yet implemented!");
-        }
+        }*/
 
         // The host of the new object will be the session host.
         Packet result = null;
@@ -4615,21 +4725,21 @@ public class CommonSQLDAO{
             String sLine = result.getStringValue(0);
             String[] pieces = sLine.split(PM_FIELD_DELIM);
 
-            result = ServerConfig.obligationDAO.processEvent(sSessId, null,
+            Packet procEvent = ServerConfig.obligationDAO.processEvent(sSessId, null,
                     PM_EVENT_OBJECT_CREATE, sObjName,
                     pieces[1], sObjClass, sObjType, sContainers, sPerms);
+            if(procEvent.hasError()){
+                deleteNode(Integer.valueOf(pieces[1]));
+                return procEvent;
+            }else{
+                return result;
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
             return failurePacket("Exception during object creation: "
                     + e.getMessage());
         }
-
-        // If successful, the result contains the name and id of the new object.
-
-        // If failure, delete the new object???
-        // ...
-        return result;
     }
 
     /**
@@ -5019,6 +5129,8 @@ public class CommonSQLDAO{
                     if (res.hasError()) {
                         return res;
                     }
+                    //addPmGraphNode(sEntId, res.getStringValue(0).split(PM_FIELD_DELIM)[1],
+                    //sOpsetName, PM_NODE.OPSET.value);
                     return SQLPacketHandler.getSuccessPacket();
                 }
             }
@@ -5814,7 +5926,7 @@ public class CommonSQLDAO{
             }
 
             // Find the sender and the sender's OUTBOX container.
-            String sSenderId = getSessionUserId(sSessId);
+            String sSenderId = getSessionUserIdInternal(sSessId);
             if (sSenderId == null) {
                 return failurePacket("Couldn't find sender!");
             }
@@ -6713,7 +6825,7 @@ public class CommonSQLDAO{
                 }
             }
 
-            sUserId = getSessionUserId(sSessId);
+            sUserId = getSessionUserIdInternal(sSessId);
             System.out.println("getContainersOf, user is " + getEntityName(sUserId, PM_NODE.USER.value));
             System.out.println("Base type: " + sBaseType);
         } catch (Exception e) {
@@ -6830,7 +6942,7 @@ public class CommonSQLDAO{
                 if (toAttrs != null) {
                     for (Integer attr : toAttrs) {
                         String sId = String.valueOf(attr);
-                        boolean isAcc = oattrIsAccessible(sUserId, sId);
+                        boolean isAcc = oattrIsAccessibleInternal(sUserId, sId);
                         result.addItem(ItemType.RESPONSE_TEXT,PM_NODE.OATTR.value
                                 + PM_FIELD_DELIM + sId + PM_FIELD_DELIM
                                 + getEntityName(sId,PM_NODE.OATTR.value)
@@ -6869,7 +6981,7 @@ public class CommonSQLDAO{
                 if (toAttrs != null) {
                     for (Integer attr : toAttrs) {
                         String sId = String.valueOf(attr);
-                        boolean isAcc = oattrIsAccessible(sUserId, sId);
+                        boolean isAcc = oattrIsAccessibleInternal(sUserId, sId);
                         result.addItem(ItemType.RESPONSE_TEXT,PM_NODE.OATTR.value
                                 + PM_FIELD_DELIM + sId + PM_FIELD_DELIM
                                 + getEntityName(sId,PM_NODE.OATTR.value)
@@ -6911,7 +7023,7 @@ public class CommonSQLDAO{
     //   but not both of the name and id may be null. The type must be non-null.
     // sGraphType: the type of graph we display.
     public Packet getMellContainersOf(String sSessId, String sBaseName, String sBaseId, String sBaseType,
-                                      String sGraphType) {
+                                      String sPerm) {
         try {
             if (sBaseType == null)
                 return failurePacket("Null (unknown) base node type in getMellContainersOf()");
@@ -6925,7 +7037,7 @@ public class CommonSQLDAO{
             else if (!sBaseName.equalsIgnoreCase(sBName))
                 return failurePacket("Inconsistent base node in getMellContainersOf()");
 
-            String sUserId = getSessionUserId(sSessId);
+            String sUserId = getSessionUserIdInternal(sSessId);
             node = graphMgr.getGraph().getNode(sUserId);
             if (node == null) return failurePacket("No graph node for user witth id " + sUserId + " in getMellContainersOf()");
 
@@ -6939,7 +7051,7 @@ public class CommonSQLDAO{
             // OBJECT ATTRIBUTE OR ASSOCIATE.
             if (sBaseType.equalsIgnoreCase(PM_NODE.OATTR.value) ||
                     sBaseType.equalsIgnoreCase(PM_NODE.ASSOC.value)) {
-                HashSet hsOas = successorOasInternal(sUserName, sUserId, sBaseName, sBaseId);
+                HashSet hsOas = successorOasInternal(sUserName, sUserId, sBaseName, sBaseId, sPerm);
                 if (hsOas.isEmpty()) {
                     result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.CONN.value
                             + PM_FIELD_DELIM
@@ -7007,7 +7119,7 @@ public class CommonSQLDAO{
     // Gopi - This is method is still being called - it should not be
     public Packet getMembersOf(String sSessId, String sBaseName, String sBaseId,
                                String sBaseType, String sGraphType) {
-        Long s = System.currentTimeMillis();
+        Long s = System.nanoTime();
         System.out.println("********************* getMembersOf() called with parameters " +
                 " sSessId = " + sSessId +
                 " sBaseName = " + sBaseName +
@@ -7048,7 +7160,7 @@ public class CommonSQLDAO{
             }
 
             // Steve - Added (3/6/15)
-            sUserId = getSessionUserId(sSessId);
+            sUserId = getSessionUserIdInternal(sSessId);
             System.out.println("getMembersOf, user is " + getEntityName(sUserId,PM_NODE.USER.value));
         } catch (Exception e) {
             e.printStackTrace();
@@ -7056,7 +7168,7 @@ public class CommonSQLDAO{
         }
 
         Packet result = new Packet();
-
+        List<Member> retMembers = new ArrayList<Member>();
         try {
             // For the CONNECTOR.
             if (sBaseType.equalsIgnoreCase(PM_NODE.CONN.value)) {
@@ -7064,39 +7176,23 @@ public class CommonSQLDAO{
                 // Add the users and user attributes if correct graph type.
                 if (sGraphType.equalsIgnoreCase(PM_GRAPH_CAPS)
                         || sGraphType.equalsIgnoreCase(PM_GRAPH_UATTR)) {
-                    ArrayList<Integer> users = getFromUsers(sBaseId, sBaseType);
-                    if (users != null) {
-                        for (Integer userId : users) {
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.USER.value
-                                    + PM_FIELD_DELIM + userId + PM_FIELD_DELIM
-                                    + getEntityName(String.valueOf(userId),PM_NODE.USER.value));
-                        }
-                    }
-
-                    ArrayList<Integer> uattrs = getFromUserAttrs(sBaseId, sBaseType);
-                    if (uattrs != null) {
-                        for (Integer uaId : uattrs) {
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.UATTR.value + PM_FIELD_DELIM + uaId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(String.valueOf(uaId),PM_NODE.UATTR.value));
-                        }
+                    //u and ua
+                    ArrayList<ArrayList<Object>> members = select(GET_MEMBERS_U_UA, sBaseId);
+                    for(ArrayList<Object> row : members){
+                        String type = (String) row.get(0);
+                        Integer id = (Integer) row.get(1);
+                        String  name = (String) row.get(2);
+                        retMembers.add(new Member(type, name, id.toString()));
                     }
                 }
 
-                // Always add the policies.
-                ArrayList<Integer> pcs = getFromPolicies(sBaseId, sBaseType);
-                if (pcs != null) {
-                    for (Integer pcId : pcs) {
-                        result.addItem(ItemType.RESPONSE_TEXT,PM_NODE.POL.value
-                                + PM_FIELD_DELIM
-                                + pcId
-                                + PM_FIELD_DELIM
-                                + getEntityName(String.valueOf(pcId),PM_NODE.POL.value)
-                                + PM_FIELD_DELIM +
-                                "true");
-                    }
+                //p
+                ArrayList<ArrayList<Object>> members = select(GET_MEMBERS_POL, sBaseId);
+                for(ArrayList<Object> row : members){
+                    String type = (String) row.get(0);
+                    Integer id = (Integer) row.get(1);
+                    String  name = (String) row.get(2);
+                    retMembers.add(new Member(type, id.toString(), name));
                 }
 
                 // Add the object attributes and associates if correct graph
@@ -7110,28 +7206,12 @@ public class CommonSQLDAO{
                             String sId = String.valueOf(oaId);
 
                             // Is thiss object attribute accessible to the session user?
-                            boolean isAcc = oattrIsAccessible(sUserId, sId);
+                            boolean isAcc = true;//oattrIsAccessibleInternal(sUserId, sId);
 
                             if (hasAssocObj(sId)) {
-                                result.addItem(
-                                        ItemType.RESPONSE_TEXT,
-                                        PM_NODE.ASSOC.value
-                                                + PM_FIELD_DELIM
-                                                + sId
-                                                + PM_FIELD_DELIM
-                                                + getEntityName(sId, PM_NODE.ASSOC.value)
-                                                + PM_FIELD_DELIM
-                                                + isAcc);
+                                retMembers.add(new Member(PM_NODE.ASSOC.value, sId, getEntityName(sId, PM_NODE.ASSOC.value)));
                             } else {
-                                result.addItem(
-                                        ItemType.RESPONSE_TEXT,
-                                        PM_NODE.OATTR.value
-                                                + PM_FIELD_DELIM
-                                                + sId
-                                                + PM_FIELD_DELIM
-                                                + getEntityName(sId, PM_NODE.OATTR.value)
-                                                + PM_FIELD_DELIM
-                                                + isAcc);
+                                retMembers.add(new Member(PM_NODE.OATTR.value, sId, getEntityName(sId, PM_NODE.OATTR.value)));
                             }
                         }
                     }
@@ -7142,14 +7222,9 @@ public class CommonSQLDAO{
                             String sId = String.valueOf(objId);
 
                             // Steve - Added (3/6/15)
-                            boolean isAcc = oattrIsAccessible(sUserId, sId);
+                            boolean isAcc = true;//oattrIsAccessibleInternal(sUserId, sId);
 
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.ASSOC.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.ASSOC.value)
-                                            + PM_FIELD_DELIM + isAcc);
+                            retMembers.add(new Member(PM_NODE.ASSOC.value, sId, getEntityName(sId, PM_NODE.ASSOC.value)));
                             // Steve END - Added(3/6/15)
 
                         }
@@ -7160,9 +7235,7 @@ public class CommonSQLDAO{
                 // Always add the operation sets.
                 if (opsets != null) {
                     for (Integer opsetId : opsets) {
-                        result.addItem(ItemType.RESPONSE_TEXT,PM_NODE.OPSET.value
-                                + PM_FIELD_DELIM + opsetId + PM_FIELD_DELIM
-                                + getEntityName(String.valueOf(opsetId),PM_NODE.OPSET.value));
+                        retMembers.add(new Member(PM_NODE.OPSET.value, opsetId.toString(), getEntityName(String.valueOf(opsetId),PM_NODE.OPSET.value)));
                     }
                 }
 
@@ -7174,11 +7247,9 @@ public class CommonSQLDAO{
                     ArrayList<Integer> uattrs = getFromUserAttrs(sBaseId, sBaseType);
                     if (uattrs != null) {
                         for (Integer uaId : uattrs) {
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.UATTR.value + PM_FIELD_DELIM + uaId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(String.valueOf(uaId),PM_NODE.UATTR.value));
+                            retMembers.add(
+
+                                    new Member(PM_NODE.UATTR.value, uaId.toString(), getEntityName(String.valueOf(uaId),PM_NODE.UATTR.value)));
                         }
                     }
                 }
@@ -7194,28 +7265,12 @@ public class CommonSQLDAO{
                             String sId = String.valueOf(oaId);
 
                             // Is thiss object attribute accessible to the session user?
-                            boolean isAcc = oattrIsAccessible(sUserId, sId);
+                            boolean isAcc = true;//oattrIsAccessibleInternal(sUserId, sId);
 
                             if (hasAssocObj(sId)) {
-                                result.addItem(
-                                        ItemType.RESPONSE_TEXT,
-                                        PM_NODE.ASSOC.value
-                                                + PM_FIELD_DELIM
-                                                + sId
-                                                + PM_FIELD_DELIM
-                                                + getEntityName(sId, PM_NODE.OATTR.value)
-                                                + PM_FIELD_DELIM
-                                                + isAcc);
+                                retMembers.add(new Member(PM_NODE.ASSOC.value, sId, getEntityName(sId, PM_NODE.OATTR.value)));
                             } else {
-                                result.addItem(
-                                        ItemType.RESPONSE_TEXT,
-                                        PM_NODE.OATTR.value
-                                                + PM_FIELD_DELIM
-                                                + sId
-                                                + PM_FIELD_DELIM
-                                                + getEntityName(sId, PM_NODE.OATTR.value)
-                                                + PM_FIELD_DELIM
-                                                + isAcc);
+                                retMembers.add(new Member(PM_NODE.OATTR.value, sId, getEntityName(sId, PM_NODE.OATTR.value)));
                             }
                         }
                     }
@@ -7226,14 +7281,9 @@ public class CommonSQLDAO{
                             String sId = String.valueOf(objId);
 
                             // Steve - Added (3/6/15)
-                            boolean isAcc = oattrIsAccessible(sUserId, sId);
+                            boolean isAcc = true;//oattrIsAccessibleInternal(sUserId, sId);
 
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.ASSOC.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.ASSOC.value)
-                                            + PM_FIELD_DELIM + isAcc);
+                            retMembers.add(new Member(PM_NODE.ASSOC.value, sId, getEntityName(sId,PM_NODE.ASSOC.value)));
                             // Steve END - Added(3/6/15)
 
                         }
@@ -7245,20 +7295,17 @@ public class CommonSQLDAO{
                 ArrayList<Integer> uattrs = getFromUserAttrs(sBaseId, sBaseType);
                 if (uattrs != null) {
                     for (Integer uaId : uattrs) {
-                        result.addItem(
-                                ItemType.RESPONSE_TEXT,
-                                PM_NODE.UATTR.value + PM_FIELD_DELIM + uaId
-                                        + PM_FIELD_DELIM
-                                        + getEntityName(String.valueOf(uaId),PM_NODE.UATTR.value));
+                        retMembers.add(
+
+                                new Member(PM_NODE.UATTR.value, uaId.toString(), getEntityName(String.valueOf(uaId), PM_NODE.UATTR.value)));
                     }
                 }
 
                 ArrayList<Integer> users = getFromUsers(sBaseId, sBaseType);
                 if (users != null) {
                     for (Integer userId : users) {
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.USER.value
-                                + PM_FIELD_DELIM + userId + PM_FIELD_DELIM
-                                + getEntityName(String.valueOf(userId),PM_NODE.USER.value));
+                        retMembers.add(
+                                new Member(PM_NODE.USER.value, userId.toString(), getEntityName(String.valueOf(userId), PM_NODE.USER.value)));
                     }
                 }
 
@@ -7272,22 +7319,12 @@ public class CommonSQLDAO{
                         String sId = String.valueOf(oaId);
 
                         // Steve - Added (3/6/15)
-                        boolean isAcc = oattrIsAccessible(sUserId, sId);
+                        boolean isAcc = true;//oattrIsAccessibleInternal(sUserId, sId);
 
                         if (hasAssocObj(sId))
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.ASSOC.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.OATTR.value)
-                                            + PM_FIELD_DELIM + isAcc);
+                            retMembers.add(new Member(PM_NODE.ASSOC.value, sId, getEntityName(sId, PM_NODE.OATTR.value)));
                         else
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.OATTR.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.OATTR.value)
-                                            + PM_FIELD_DELIM + isAcc);
+                            retMembers.add(new Member(PM_NODE.OATTR.value, sId, getEntityName(sId, PM_NODE.OATTR.value)));
                         // Steve END - Added(3/6/15)
 
                     }
@@ -7299,14 +7336,9 @@ public class CommonSQLDAO{
                         String sId = String.valueOf(objId);
 
                         // Steve - Added (3/6/15)
-                        boolean isAcc = oattrIsAccessible(sUserId, sId);
+                        boolean isAcc = true;//oattrIsAccessibleInternal(sUserId, sId);
 
-                        result.addItem(
-                                ItemType.RESPONSE_TEXT,
-                                PM_NODE.ASSOC.value + PM_FIELD_DELIM + sId
-                                        + PM_FIELD_DELIM
-                                        + getEntityName(sId,PM_NODE.ASSOC.value)
-                                        + PM_FIELD_DELIM + isAcc);
+                        retMembers.add(new Member(PM_NODE.ASSOC.value, sId, getEntityName(sId,PM_NODE.ASSOC.value)));
                         // Steve END - Added(3/6/15)
 
                     }
@@ -7318,11 +7350,9 @@ public class CommonSQLDAO{
                     if (opsets != null) {
                         for (Integer opsetId : opsets) {
                             String sId = String.valueOf(opsetId);
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.OPSET.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.OPSET.value));
+                            retMembers.add(
+
+                                    new Member(PM_NODE.OPSET.value, sId, getEntityName(sId,PM_NODE.OPSET.value)));
                         }
                     }
                 }
@@ -7335,11 +7365,9 @@ public class CommonSQLDAO{
                     if (opsets != null) {
                         for (Integer opsetId : opsets) {
                             String sId = String.valueOf(opsetId);
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.OPSET.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.OPSET.value));
+                            retMembers.add(
+
+                                    new Member(PM_NODE.OPSET.value, sId, getEntityName(sId,PM_NODE.OPSET.value)));
                         }
                     }
                 }
@@ -7351,550 +7379,52 @@ public class CommonSQLDAO{
                 if (uattrs != null) {
                     for (Integer uaId : uattrs) {
                         String sId = String.valueOf(uaId);
-                        result.addItem(ItemType.RESPONSE_TEXT,PM_NODE.UATTR.value
-                                + PM_FIELD_DELIM + sId + PM_FIELD_DELIM
-                                + getEntityName(sId,PM_NODE.UATTR.value));
+                        retMembers.add(new Member(PM_NODE.UATTR.value, sId, getEntityName(sId,PM_NODE.UATTR.value)));
                     }
                 }
             }
+            Collections.sort(retMembers);
             System.out.println("--------getMembersOf Results for " + sBaseName + "--------");
-            for(int i = 0; i < result.size(); i++){
-                System.out.println(result.getStringValue(i));
+            for(Member m : retMembers){
+                result.addItem(ItemType.RESPONSE_TEXT, m.toString());
+                System.out.println(m);
             }
             System.out.println("--------getMembersOf Results for " + sBaseName + "--------");
-            Long e = System.currentTimeMillis();
-            System.out.println("getMembersOf time = " + (double)(e-s)/1000);
+            Long e = System.nanoTime();
+            System.out.println("getMembersOf time = " + (double)((e-s)/1000000000.0f));
+
             return result;
         } catch (Exception e) {
             e.printStackTrace();
             return failurePacket("Exception in getMembersOf()");
         }
-        /*if(sSessId != null){
-            return getMellMembersOf(sSessId, sBaseName, sBaseId,
-                    sBaseType, sGraphType);
-        }*//*
-        List<Integer> allMembers = new ArrayList<Integer>();
+    }
 
-        Session s = sessions.get(Integer.valueOf(sSessId));
-        PmGraph g = s.getGraph();
-        PmGraphNode n = s.getGraph().getNode(Integer.valueOf(sBaseId));
-        HashSet<Integer> members = n.getMembers();
-        Iterator<Integer> iter = members.iterator();
+    class Member implements Comparable<Member>{
 
-        while(iter.hasNext()){
-            allMembers.add(iter.next());
+        private String name;
+        private String type;
+        private String id;
+
+        private Member(String t, String i, String n){
+            name = n;
+            type = t;
+            id = i;
         }
 
-        System.out.println("********************* getMembersOf() called with parameters " +
-                " sSessId = " + sSessId +
-                " sBaseName = " + sBaseName +
-                " sBaseId   = " + sBaseId +
-                " sBaseType   = " + sBaseType +
-                " sGraphType   = " + sGraphType);
-
-        if (sBaseType == null) {
-            return failurePacket("Null (unknown) base node type in getMembersOf()");
-        }
-        String sUserId = null;
-        try {
-            if (sBaseName == null) {
-                if (sBaseId == null) {
-                    return failurePacket("Name and id of the base node are both null in getMembersOf()");
-                }
-                sBaseName = getEntityName(sBaseId, sBaseType);
-                if (sBaseName == null) {
-                    return failurePacket("No base node of type " + sBaseType
-                            + " and id " + sBaseId);
-                }
-            } else if (sBaseId == null) {
-                sBaseId = getEntityId(sBaseName, sBaseType);
-                if (sBaseId == null) {
-                    return failurePacket("No base node of type " + sBaseType
-                            + " and name " + sBaseName);
-                }
-            } else {
-                String sBaseName2 = getEntityName(sBaseId, sBaseType);
-                if (sBaseName2 == null) {
-                    return failurePacket("No base node of type " + sBaseType
-                            + " and id " + sBaseId);
-                }
-                if (!sBaseName2.equalsIgnoreCase(sBaseName)) {
-                    return failurePacket("Inconsistency between base node name "
-                            + sBaseName + " and id " + sBaseId);
-                }
-            }
-
-            // Steve - Added (3/6/15)
-            sUserId = getSessionUserId(sSessId);
-            System.out.println("getMembersOf, user is " + getEntityName(sUserId,PM_NODE.USER.value));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return failurePacket(e.getMessage());
+        @Override
+        public String toString(){
+            return type + PM_FIELD_DELIM + id + PM_FIELD_DELIM + name;
         }
 
-        Packet result = new Packet();
-
-        try {
-            // For the CONNECTOR.
-            if (sBaseType.equalsIgnoreCase(PM_NODE.CONN.value)) {
-
-                // Add the users and user attributes if correct graph type.
-                if (sGraphType.equalsIgnoreCase(PM_GRAPH_CAPS)
-                        || sGraphType.equalsIgnoreCase(PM_GRAPH_UATTR)) {
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.USER.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.USER.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-                    *//*ArrayList<Integer> users = getFromUsers(sBaseId, sBaseType);
-                    if (users != null) {
-                        for (Integer userId : users) {
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.USER.value
-                                    + PM_FIELD_DELIM + userId + PM_FIELD_DELIM
-                                    + getEntityName(String.valueOf(userId),PM_NODE.USER.value));
-                        }
-                    }*//*
-
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.UATTR.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.UATTR.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-
-                    *//*ArrayList<Integer> uattrs = getFromUserAttrs(sBaseId, sBaseType);
-                    if (uattrs != null) {
-                        for (Integer uaId : uattrs) {
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.UATTR.value + PM_FIELD_DELIM + uaId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(String.valueOf(uaId),PM_NODE.UATTR.value));
-                        }
-                    }*//*
-                }
-
-                for(Integer i : allMembers){
-                    n = s.getGraph().getNode(i);
-                    if(n.getType().equals(PM_NODE.POL.value)){
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.POL.value
-                                + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                + n.getName());
-                        //allMembers,remove(i);
-                    }
-                }
-
-                // Always add the policies.
-                *//*ArrayList<Integer> pcs = getFromPolicies(sBaseId, sBaseType);
-                if (pcs != null) {
-                    for (Integer pcId : pcs) {
-                        result.addItem(ItemType.RESPONSE_TEXT,PM_NODE.POL.value
-                                + PM_FIELD_DELIM
-                                + pcId
-                                + PM_FIELD_DELIM
-                                + getEntityName(String.valueOf(pcId),PM_NODE.POL.value)
-                                + PM_FIELD_DELIM +
-                                "true");
-                    }
-                }*//*
-
-                // Add the object attributes and associates if correct graph
-                // type.
-                if (sGraphType.equalsIgnoreCase(PM_GRAPH_ACES)
-                        || sGraphType.equalsIgnoreCase(PM_GRAPH_OATTR)) {
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.OATTR.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.OATTR.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-                    *//*ArrayList<Integer> oaIds = getFromObjAttrs(sBaseId, sBaseType);
-
-                    if (oaIds != null) {
-                        for (Integer oaId : oaIds) {
-                            String sId = String.valueOf(oaId);
-
-                            // Is thiss object attribute accessible to the session user?
-                            boolean isAcc = oattrIsAccessible(sUserId, sId);
-
-                            if (hasAssocObj(sId)) {
-                                result.addItem(
-                                        ItemType.RESPONSE_TEXT,
-                                        PM_NODE.ASSOC.value
-                                                + PM_FIELD_DELIM
-                                                + sId
-                                                + PM_FIELD_DELIM
-                                                + getEntityName(sId, PM_NODE.ASSOC.value)
-                                                + PM_FIELD_DELIM
-                                                + isAcc);
-                            } else {
-                                result.addItem(
-                                        ItemType.RESPONSE_TEXT,
-                                        PM_NODE.OATTR.value
-                                                + PM_FIELD_DELIM
-                                                + sId
-                                                + PM_FIELD_DELIM
-                                                + getEntityName(sId, PM_NODE.OATTR.value)
-                                                + PM_FIELD_DELIM
-                                                + isAcc);
-                            }
-                        }
-                    }*//*
-
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.ASSOC.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.ASSOC.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-
-                    *//*ArrayList<Integer> objects = getFromAttrs(sBaseId, PM_NODE.ASSOC.value, DEPTH);
-                    if (objects != null) {
-                        for (Integer objId : objects) {
-                            String sId = String.valueOf(objId);
-
-                            // Steve - Added (3/6/15)
-                            boolean isAcc = oattrIsAccessible(sUserId, sId);
-
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.ASSOC.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.ASSOC.value)
-                                            + PM_FIELD_DELIM + isAcc);
-                            // Steve END - Added(3/6/15)
-
-                        }
-                    }*//*
-                }
-
-                *//*ArrayList<Integer> opsets = getFromOpsets(sBaseId, sBaseType);
-                // Always add the operation sets.
-                if (opsets != null) {
-                    for (Integer opsetId : opsets) {
-                        result.addItem(ItemType.RESPONSE_TEXT,PM_NODE.OPSET.value
-                                + PM_FIELD_DELIM + opsetId + PM_FIELD_DELIM
-                                + getEntityName(String.valueOf(opsetId),PM_NODE.OPSET.value));
-                    }
-                }*//*
-
-                for(Integer i : allMembers){
-                    n = s.getGraph().getNode(i);
-                    if(n.getType().equals(PM_NODE.OPSET.value)){
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.OPSET.value
-                                + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                + n.getName());
-                        //allMembers,remove(i);
-                    }
-                }
-
-                // POLICY
-            } else if (sBaseType.equalsIgnoreCase(PM_NODE.POL.value)) {
-                // Add the user attributes if correct graph type.
-                if (sGraphType.equalsIgnoreCase(PM_GRAPH_CAPS)
-                        || sGraphType.equalsIgnoreCase(PM_GRAPH_UATTR)) {
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.UATTR.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.UATTR.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-                    *//*ArrayList<Integer> uattrs = getFromUserAttrs(sBaseId, sBaseType);
-                    if (uattrs != null) {
-                        for (Integer uaId : uattrs) {
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.UATTR.value + PM_FIELD_DELIM + uaId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(String.valueOf(uaId),PM_NODE.UATTR.value));
-                        }
-                    }*//*
-                }
-
-                // Add the object attributes and associates if correct graph
-                // type.
-                if (sGraphType.equalsIgnoreCase(PM_GRAPH_ACES)
-                        || sGraphType.equalsIgnoreCase(PM_GRAPH_OATTR)) {
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.OATTR.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.OATTR.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-                    *//*ArrayList<Integer> oaIds = getFromObjAttrs(sBaseId, sBaseType);
-
-                    if (oaIds != null) {
-                        for (Integer oaId : oaIds) {
-                            String sId = String.valueOf(oaId);
-
-                            // Is thiss object attribute accessible to the session user?
-                            boolean isAcc = oattrIsAccessible(sUserId, sId);
-
-                            if (hasAssocObj(sId)) {
-                                result.addItem(
-                                        ItemType.RESPONSE_TEXT,
-                                        PM_NODE.ASSOC.value
-                                                + PM_FIELD_DELIM
-                                                + sId
-                                                + PM_FIELD_DELIM
-                                                + getEntityName(sId, PM_NODE.OATTR.value)
-                                                + PM_FIELD_DELIM
-                                                + isAcc);
-                            } else {
-                                result.addItem(
-                                        ItemType.RESPONSE_TEXT,
-                                        PM_NODE.OATTR.value
-                                                + PM_FIELD_DELIM
-                                                + sId
-                                                + PM_FIELD_DELIM
-                                                + getEntityName(sId, PM_NODE.OATTR.value)
-                                                + PM_FIELD_DELIM
-                                                + isAcc);
-                            }
-                        }
-                    }*//*
-
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.ASSOC.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.ASSOC.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-
-                    *//*ArrayList<Integer> objects = getFromAttrs(sBaseId, PM_NODE.ASSOC.value, DEPTH);
-                    if (objects != null) {
-                        for (Integer objId : objects) {
-                            String sId = String.valueOf(objId);
-
-                            // Steve - Added (3/6/15)
-                            boolean isAcc = oattrIsAccessible(sUserId, sId);
-
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.ASSOC.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.ASSOC.value)
-                                            + PM_FIELD_DELIM + isAcc);
-                            // Steve END - Added(3/6/15)
-
-                        }
-                    }*//*
-                }
-
-                // USER ATTRIBUTE
-            } else if (sBaseType.equalsIgnoreCase(PM_NODE.UATTR.value)) {
-                for(Integer i : allMembers){
-                    n = s.getGraph().getNode(i);
-                    if(n.getType().equals(PM_NODE.UATTR.value)){
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.UATTR.value
-                                + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                + n.getName());
-                        //allMembers,remove(i);
-                    }
-                }
-                *//*ArrayList<Integer> uattrs = getFromUserAttrs(sBaseId, sBaseType);
-                if (uattrs != null) {
-                    for (Integer uaId : uattrs) {
-                        result.addItem(
-                                ItemType.RESPONSE_TEXT,
-                                PM_NODE.UATTR.value + PM_FIELD_DELIM + uaId
-                                        + PM_FIELD_DELIM
-                                        + getEntityName(String.valueOf(uaId),PM_NODE.UATTR.value));
-                    }
-                }*//*
-
-                for(Integer i : allMembers){
-                    n = s.getGraph().getNode(i);
-                    if(n.getType().equals(PM_NODE.USER.value)){
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.USER.value
-                                + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                + n.getName());
-                        //allMembers,remove(i);
-                    }
-                }
-
-                *//*ArrayList<Integer> users = getFromUsers(sBaseId, sBaseType);
-                if (users != null) {
-                    for (Integer userId : users) {
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.USER.value
-                                + PM_FIELD_DELIM + userId + PM_FIELD_DELIM
-                                + getEntityName(String.valueOf(userId),PM_NODE.USER.value));
-                    }
-                }*//*
-
-                // OBJECT ATTRIBUTE  JOSH END
-            } else if (sBaseType.equalsIgnoreCase(PM_NODE.OATTR.value)) {
-                for(Integer i : allMembers){
-                    n = s.getGraph().getNode(i);
-                    if(n.getType().equals(PM_NODE.OATTR.value)){
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.OATTR.value
-                                + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                + n.getName());
-                        //allMembers,remove(i);
-                    }
-                }
-                // Add the object attributes and associates.
-                *//*ArrayList<Integer> oattrs = getFromAttrs(sBaseId, PM_NODE.OATTR.value, DEPTH);
-                if (oattrs != null) {
-                    for (Integer oaId : oattrs) {
-                        String sId = String.valueOf(oaId);
-
-                        // Steve - Added (3/6/15)
-                        boolean isAcc = oattrIsAccessible(sUserId, sId);
-
-                        if (hasAssocObj(sId))
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.ASSOC.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.OATTR.value)
-                                            + PM_FIELD_DELIM + isAcc);
-                        else
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.OATTR.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.OATTR.value)
-                                            + PM_FIELD_DELIM + isAcc);
-                        // Steve END - Added(3/6/15)
-
-                    }
-                }*//*
-
-                for(Integer i : allMembers){
-                    n = s.getGraph().getNode(i);
-                    if(n.getType().equals(PM_NODE.ASSOC.value)){
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.ASSOC.value
-                                + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                + n.getName());
-                        //allMembers,remove(i);
-                    }
-                }
-
-                *//*ArrayList<Integer> objects = getFromAttrs(sBaseId, PM_NODE.ASSOC.value, DEPTH);
-                if (objects != null) {
-                    for (Integer objId : objects) {
-                        String sId = String.valueOf(objId);
-
-                        // Steve - Added (3/6/15)
-                        boolean isAcc = oattrIsAccessible(sUserId, sId);
-
-                        result.addItem(
-                                ItemType.RESPONSE_TEXT,
-                                PM_NODE.ASSOC.value + PM_FIELD_DELIM + sId
-                                        + PM_FIELD_DELIM
-                                        + getEntityName(sId,PM_NODE.ASSOC.value)
-                                        + PM_FIELD_DELIM + isAcc);
-                        // Steve END - Added(3/6/15)
-
-                    }
-                }*//*
-
-                // Add the operation sets if correct graph type.
-                if (sGraphType.equalsIgnoreCase(PM_GRAPH_ACES)) {
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.OPSET.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.OPSET.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-                    *//*ArrayList<Integer> opsets = getFromOpsets(sBaseId, sBaseType);
-                    if (opsets != null) {
-                        for (Integer opsetId : opsets) {
-                            String sId = String.valueOf(opsetId);
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.OPSET.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.OPSET.value));
-                        }
-                    }*//*
-                }
-
-                // OBJECT ATTRIBUTE ASSOCIATED TO AN OBJECT
-            } else if (sBaseType.equalsIgnoreCase(PM_NODE.ASSOC.value)) {
-                // Add the operation sets if correct graph type.
-                if (sGraphType.equalsIgnoreCase(PM_GRAPH_ACES)) {
-                    for(Integer i : allMembers){
-                        n = s.getGraph().getNode(i);
-                        if(n.getType().equals(PM_NODE.OPSET.value)){
-                            result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.OPSET.value
-                                    + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                    + n.getName());
-                            //allMembers,remove(i);
-                        }
-                    }
-                    *//*ArrayList<Integer> opsets = getFromAttrs(sBaseId, PM_NODE.OPSET.value, DEPTH);
-                    if (opsets != null) {
-                        for (Integer opsetId : opsets) {
-                            String sId = String.valueOf(opsetId);
-                            result.addItem(
-                                    ItemType.RESPONSE_TEXT,
-                                    PM_NODE.OPSET.value + PM_FIELD_DELIM + sId
-                                            + PM_FIELD_DELIM
-                                            + getEntityName(sId,PM_NODE.OPSET.value));
-                        }
-                    }*//*
-                }
-
-                // OPERATION SET.
-            } else if (sBaseType.equalsIgnoreCase(PM_NODE.OPSET.value)) {
-                // Add the user attributes.
-
-                for(Integer i : allMembers){
-                    n = s.getGraph().getNode(i);
-                    if(n.getType().equals(PM_NODE.UATTR.value)){
-                        result.addItem(ItemType.RESPONSE_TEXT, PM_NODE.UATTR.value
-                                + PM_FIELD_DELIM + i + PM_FIELD_DELIM
-                                + n.getName());
-                        //allMembers,remove(i);
-                    }
-                }
-                *//*ArrayList<Integer> uattrs = getFromUserAttrs(sBaseId, sBaseType);
-                if (uattrs != null) {
-                    for (Integer uaId : uattrs) {
-                        String sId = String.valueOf(uaId);
-                        result.addItem(ItemType.RESPONSE_TEXT,PM_NODE.UATTR.value
-                                + PM_FIELD_DELIM + sId + PM_FIELD_DELIM
-                                + getEntityName(sId,PM_NODE.UATTR.value));
-                    }
-                }*//*
+        @Override
+        public int compareTo(Member m) {
+            if(!this.type.equals(m.type)){
+                return this.type.compareTo(m.type);
             }
-            System.out.println("--------getMembersOf Results for " + sBaseName + "--------");
-            for(int i = 0; i < result.size(); i++){
-                System.out.println(result.getStringValue(i));
-            }
-            System.out.println("--------getMembersOf Results for " + sBaseName + "--------");
-            return result;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return failurePacket("Exception in getMembersOf()");
-        }*/
+
+            return this.name.toLowerCase().compareTo(m.name.toLowerCase());
+        }
     }
 
     public Packet getMellMembersOf(String sSessId, String sBaseName, String sBaseId, String sBaseType,
@@ -7908,7 +7438,7 @@ public class CommonSQLDAO{
             if (sBaseName == null) sBaseName = sBName;
             else if (!sBaseName.equalsIgnoreCase(sBName)) return failurePacket("Inconsistent base node in getMellMembersOf()");
 
-            String sUserId = getSessionUserId(sSessId);
+            String sUserId = getSessionUserIdInternal(sSessId);
             node = graphMgr.getGraph().getNode(sUserId);
             if (node == null) return failurePacket("No graph node for user with id " + sUserId + " in getMellMembersOf()");
             String sUserName = node.getName();
@@ -7921,17 +7451,28 @@ public class CommonSQLDAO{
             // implemented in initialOasInternal().
             if (sBaseType.equalsIgnoreCase(PM_NODE.CONN.value)) {
                 HashSet hsOas = initialOasInternal(sUserName, sUserId);
-                Packet res = new Packet();
                 Iterator hsiter = hsOas.iterator();
+                List<Member> members = new ArrayList<Member>();
                 while (hsiter.hasNext()) {
                     String sOaId = (String)hsiter.next();
                     String sOaName = graphMgr.getGraph().getNode(sOaId).getName();
                     String sOaType = graphMgr.getGraph().getNode(sOaId).getType();
                     if (hasAssocObj(sOaId)) sOaType = PM_NODE.ASSOC.value;
 
-                    res.addItem(ItemType.RESPONSE_TEXT, sOaType + PM_FIELD_DELIM +
-                            sOaId + PM_FIELD_DELIM + sOaName + PM_FIELD_DELIM + "true");
+                    if(getDeniedPerms(sSessId, sUserId, null, sOaId, sOaType).contains("File read")){
+                        continue;
+                    }
+                    members.add(new Member(sOaType, sOaId, sOaName));
                 }
+                Packet res = new Packet();
+
+                Collections.sort(members);
+                System.out.println("getMellMembersOf for " + sBaseName + "{");
+                for(Member m : members){
+                    res.addItem(ItemType.RESPONSE_TEXT, m.toString());
+                    System.out.println("\t" + m);
+                }
+                System.out.println("}");
                 return res;
 
             } else if (sBaseType.equalsIgnoreCase(PM_NODE.OATTR.value)) {
@@ -7939,15 +7480,113 @@ public class CommonSQLDAO{
                 // The members are the oa nodes (they include objects) as computed
                 // by Mell's algorithm implemented in subsequentOas().
                 HashSet hsOas = subsequentOasInternal(sUserName, sUserId, sBaseName, sBaseId);
-                Packet res = new Packet();
                 if (hsOas == null) return failurePacket("Null result returned by subsequentOasInternal!");
-                for (Iterator hsiter = hsOas.iterator(); hsiter.hasNext(); ) {
-                    String sOaId = hsiter.next().toString();
+                List<Member> members = new ArrayList<Member>();
+                for (Object hsOa : hsOas) {
+                    String sOaId = hsOa.toString();
                     String sOaName = graphMgr.getGraph().getNode(sOaId).getName();
                     String sOaType = graphMgr.getGraph().getNode(sOaId).getType();
-                    res.addItem(ItemType.RESPONSE_TEXT, sOaType + PM_FIELD_DELIM +
-                            sOaId + PM_FIELD_DELIM + sOaName + PM_FIELD_DELIM + "true");
+                    if (getDeniedPerms(sSessId, sUserId, null, sOaId, sOaType).contains("File read")) {
+                        continue;
+                    }
+                    members.add(new Member(sOaType, sOaId, sOaName));
                 }
+                Packet res = new Packet();
+
+                Collections.sort(members);
+                System.out.println("getMellMembersOf for " + sBaseName + "{");
+                for(Member m : members){
+                    res.addItem(ItemType.RESPONSE_TEXT, m.toString());
+                    System.out.println("\t" + m);
+                }
+                System.out.println("}");
+                return res;
+            } else if (sBaseType.equalsIgnoreCase(PM_NODE.ASSOC.value)) {
+                // OBJECT
+                Packet res = new Packet();
+                return res;
+            } else {
+                return failurePacket("Wrong base type in getMellMembersOf()!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return failurePacket(e.getMessage());
+        }
+    }
+
+    public Packet getMellMembersOf(String sUserId, String sBaseId, String sPerm) {
+        try {
+            PmGraphNode node = graphMgr.getNode(sBaseId);
+            //if (sBaseType == null) return failurePacket("Null (unknown) base node type in getMellMembersOf()");
+            if (sBaseId == null) return failurePacket("Null (unknown) base node id in getMellMembersOf()");
+            //PmGraphNode node = graphMgr.getGraph().getNode(sBaseId);
+            if (node == null) return failurePacket("No graph node for base with id " + sBaseId + " in getMellMembersOf()");
+            String sBaseName = node.getName();
+            String sBaseType = node.getType();
+            //if (sBaseName == null) sBaseName = sBName;
+            //else if (!sBaseName.equalsIgnoreCase(sBName)) return failurePacket("Inconsistent base node in getMellMembersOf()");
+
+            node = graphMgr.getGraph().getNode(sUserId);
+            if (node == null) return failurePacket("No graph node for user with id " + sUserId + " in getMellMembersOf()");
+            String sUserName = node.getName();
+            System.out.println("getMellMembersOf, User: " + sUserName);
+            System.out.println("                  Base type: " + sBaseType);
+            System.out.println("                  Base name: " + sBaseName);
+
+            // For the CONNECTOR.
+            // The members of the connector are the initial nodes as detected by Mell algo
+            // implemented in initialOasInternal().
+            if (sBaseType.equalsIgnoreCase(PM_NODE.CONN.value)) {
+                HashSet hsOas = initialOasInternal(sUserName, sUserId);
+                Iterator hsiter = hsOas.iterator();
+                List<Member> members = new ArrayList<Member>();
+                while (hsiter.hasNext()) {
+                    String sOaId = (String)hsiter.next();
+                    String sOaName = graphMgr.getGraph().getNode(sOaId).getName();
+                    String sOaType = graphMgr.getGraph().getNode(sOaId).getType();
+                    if (hasAssocObj(sOaId)) sOaType = PM_NODE.ASSOC.value;
+
+                    if(getDeniedPerms(null, sUserId, null, sOaId, sOaType).contains(sPerm)){
+                        continue;
+                    }
+                    members.add(new Member(sOaType, sOaId, sOaName));
+                }
+                Packet res = new Packet();
+
+                Collections.sort(members);
+                System.out.println("getMellMembersOf for " + sBaseName + "{");
+                for(Member m : members){
+                    res.addItem(ItemType.RESPONSE_TEXT, m.toString());
+                    System.out.println("\t" + m);
+                }
+                System.out.println("}");
+                return res;
+
+            } else if (sBaseType.equalsIgnoreCase(PM_NODE.OATTR.value)) {
+                // OBJECT ATTRIBUTE
+                // The members are the oa nodes (they include objects) as computed
+                // by Mell's algorithm implemented in subsequentOas().
+                HashSet hsOas = subsequentOasInternal(sUserName, sUserId, sBaseName, sBaseId);
+                if (hsOas == null) return failurePacket("Null result returned by subsequentOasInternal!");
+                List<Member> members = new ArrayList<Member>();
+                for (Object hsOa : hsOas) {
+                    String sOaId = hsOa.toString();
+                    String sOaName = graphMgr.getGraph().getNode(sOaId).getName();
+                    String sOaType = graphMgr.getGraph().getNode(sOaId).getType();
+                    if (getDeniedPerms(null, sUserId, null, sOaId, sOaType).contains(sPerm)) {
+                        continue;
+                    }
+                    members.add(new Member(sOaType, sOaId, sOaName));
+                }
+                Packet res = new Packet();
+
+                Collections.sort(members);
+                System.out.println("getMellMembersOf for " + sBaseName + "{");
+                for(Member m : members){
+                    res.addItem(ItemType.RESPONSE_TEXT, m.toString());
+                    System.out.println("\t" + m);
+                }
+                System.out.println("}");
                 return res;
             } else if (sBaseType.equalsIgnoreCase(PM_NODE.ASSOC.value)) {
                 // OBJECT
@@ -7983,7 +7622,7 @@ public class CommonSQLDAO{
      * @param sSessId
      * @param sTplName the name of the template
      * @param sContainers the components for the template
-     * @param sKeys the keys for the template
+     * @param sKeys the keys for the template (ids)
      * @return a success or failure packet
      */
     public Packet addTemplate(String sSessId, String sTplName,
@@ -8164,7 +7803,7 @@ public class CommonSQLDAO{
             }
             assert sTplId != null;
             update(UPDATE_RECORD_TPL, Integer.valueOf(sTplId), Integer.valueOf(newRecordId));
-            addCompsToOattr(newRecordId, sComponents);
+            addCompsToOattrInternal(newRecordId, sComponents);
             addRecordKeys(null, newRecordName, sKeys);
         }
         catch (Exception e) {
@@ -8377,6 +8016,18 @@ public class CommonSQLDAO{
         }
     }
 
+    public Packet getNodePropertyValue(String nodeId, String propName){
+        Packet p = new Packet();
+        try {
+            String value = extractStrings(select(GET_NODE_PROP_VALUE, nodeId, propName)).get(0);
+            p.addItem(ItemType.RESPONSE_TEXT, value);
+            return p;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return failurePacket(e.getMessage());
+        }
+    }
+
     public Packet getObjProperties(String sObjOrObjAttribute) {
         System.out.println("Calling getObjProperties(" + sObjOrObjAttribute + ")");
         Packet result = new Packet();
@@ -8499,6 +8150,29 @@ public class CommonSQLDAO{
         }
     }
 
+    public List<String> getIntersectionInternal(String columnId, String rowId) throws Exception {
+        List<Integer> inters =  extractIntegers(select(GET_INTERSECTION, columnId, rowId));
+        List<String> ret = new ArrayList<String>();
+        for(Integer i : inters){
+            ret.add(i.toString());
+        }
+        return ret;
+    }
+
+    public Packet getIntersection(String columnId, String rowId){
+        try {
+            Packet p = new Packet();
+            List<String> inters = getIntersectionInternal(columnId, rowId);
+            for (String s : inters) {
+                p.addItem(ItemType.RESPONSE_TEXT, s);
+            }
+            return p;
+        }catch (Exception e){
+            e.getMessage();
+            return failurePacket(e.getMessage());
+        }
+    }
+
     public Packet addRecordKeys(String sSessId, String sRecName, String[] sKeys) {
 
         // The record is an object container. Must exist and must be a record:
@@ -8606,7 +8280,7 @@ public class CommonSQLDAO{
     public Packet audit(String sSessId, String sEvent, String sObjId,
                         String sResult) {
         try {
-            String sUserId = getSessionUserId(sSessId);
+            String sUserId = getSessionUserIdInternal(sSessId);
             String sUser = getEntityName(sUserId,PM_NODE.USER.value);
             String sHost = getSessionHostName(sSessId);
             String sAction = sEvent;
@@ -8705,6 +8379,9 @@ public class CommonSQLDAO{
         params.addParam(ParamType.INT, sSessId);
         try {
             executeStoredProcedure(RESET_DATA, params);
+
+            graphMgr.clearGraph();
+            denyMgr.clearDenies();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -8754,13 +8431,14 @@ public class CommonSQLDAO{
 
 
             if(sProps != null && sProps.length > 0) {
-                // Add the pc's properties, if any.
                 for(int i = 0; i < sProps.length; i++) {
                     if (!sProps[i].contains(PM_PROP_DELIM)) {
                         errorMessage = "property \"" + sProps[i] + "\" is not formatted correctly: property=value";
                         return null;
                     }
                 }
+            }else {
+                // Add the pc's properties, if any.
                 if (newNodeId != null) insertProperties(sProps, PM_NODE.POL.value, newNodeId);
             }
         } catch (Exception e) {
@@ -8971,7 +8649,7 @@ public class CommonSQLDAO{
                 String sCanonicCompos = getCanonicList(sComponents);
                 params.addParam(ParamType.INT, newNodeId);
                 update(UPDATE_RECORD_TPL, params);
-                addCompsToOattr(newNodeId.toString(), sCanonicCompos);
+                addCompsToOattrInternal(newNodeId.toString(), sCanonicCompos);
             }
             // Add oa keys, if any.
             if (sKeys != null){
@@ -9079,12 +8757,12 @@ public class CommonSQLDAO{
                 return opSetId;
             }
             updatePmGraphNode(opSetId.toString());
+            return opSetId;
         } catch (Exception e) {
             e.printStackTrace();
             errorMessage = "error adding op to opset or a new opset";
             return null;
         }
-        return opSetId;
     }
 
     public Integer getOperationId(String operationName) throws Exception {
@@ -9107,7 +8785,6 @@ public class CommonSQLDAO{
     // character *.
 
     public String getEntityId(String sName, String sType) throws Exception {
-        System.out.println("NAME " + sName + " TYPE " + sType);
         String sId = null;
 
         if (sName == null) {
@@ -9484,11 +9161,16 @@ public class CommonSQLDAO{
         return isAssigned(Integer.valueOf(sId1), Integer.valueOf(sId2));
     }
 
-    private boolean isAscendant(String sId1, String sId2) throws Exception{
-        if(sId1.equals(sId2)){
-            return true;
+    private boolean isAscendant(String end, String start) throws Exception {
+        return end.equals(start) || isAssigned(Integer.valueOf(end), Integer.valueOf(start));
+    }
+
+    private boolean memIsAscendant(String end, String start){
+        PmGraphNode node = ServerConfig.graphMgr.getGraph().getNode(start);
+        if(node == null){
+            return false;
         }
-        return isAssigned(Integer.valueOf(sId1), Integer.valueOf(sId2));
+        return end.equals(start) || node.getMembers().contains(end);
     }
 
     /**
@@ -9858,7 +9540,6 @@ public class CommonSQLDAO{
         MySQL_Parameters params = new MySQL_Parameters();
         params.addParam(ParamType.INT, Integer.valueOf(sId));
         ArrayList<ArrayList<Object>> results = select(IS_RECORD, params);
-        System.out.println("Out from isRecord SQL Call. The return value is " + (Long) results.get(0).get(0));
         return (Long) results.get(0).get(0) > 0;
     }
 
@@ -9873,9 +9554,15 @@ public class CommonSQLDAO{
             return SQLPacketHandler.getSuccessPacket();
         }
 
-        String key = sKey.split(PM_PROP_DELIM)[0];
-        String val = sKey.split(PM_PROP_DELIM)[1];
         try {
+            String id = getEntityId(sRecId, PM_NODE.OATTR.value);
+            if(id != null){
+                sRecId = id;
+            }
+
+            String key = sKey.split(PM_PROP_DELIM)[0];
+            String val = sKey.split(PM_PROP_DELIM)[1];
+
             MySQL_Parameters params = new MySQL_Parameters();
             params.addParam(ParamType.INT, sRecId);
             params.addParam(ParamType.STRING, key);
@@ -9889,7 +9576,20 @@ public class CommonSQLDAO{
         return SQLPacketHandler.getSuccessPacket();
     }
 
-    private boolean addTemplateToRecord(String sRecId, String sTplId) throws Exception{
+    public Packet addTemplateToRecord(String sRecId, String sTplId){
+        try{
+            if(addTemplateToRecordInternal(sRecId, sTplId)){
+                return getSuccessPacket();
+            }else{
+                return failurePacket("error adding template to record");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return failurePacket(e.getMessage());
+        }
+    }
+
+    private boolean addTemplateToRecordInternal(String sRecId, String sTplId) throws Exception{
         MySQL_Parameters params = new MySQL_Parameters();
         params.addParam(ParamType.INT, sTplId);
         params.addParam(ParamType.INT, sRecId);
@@ -9901,12 +9601,13 @@ public class CommonSQLDAO{
         if (sKey == null || sKey.length() <= 0) {
             return SQLPacketHandler.getSuccessPacket();
         }
-
-        MySQL_Parameters params = new MySQL_Parameters();
-        params.addParam(ParamType.INT, sTplId);
-        params.addParam(ParamType.STRING, sKey);
-
         try{
+            MySQL_Parameters params = new MySQL_Parameters();
+            params.addParam(ParamType.INT, sTplId);
+            //String id = getEntityId(sKey, PM_NODE.OATTR.value);
+            //String keyParam = (id==null)?sKey:id;
+            params.addParam(ParamType.STRING, sKey);
+
             insert(INSERT_TPL_KEY, params);
         }catch(Exception e){
             e.printStackTrace();
@@ -9916,10 +9617,10 @@ public class CommonSQLDAO{
     }
 
     //***************************************MELL*****************************************
-    boolean bMellPrint = true;
+    boolean bMellPrint = false;
 
     public Packet successorOas(String sSessId, String sUserName, String sUserId, String sUserType,
-                               String sTgtName, String sTgtId, String sTgtType) {
+                               String sTgtName, String sTgtId, String sTgtType, String sPerm) {
         if (bMellPrint) {
             System.out.println("SuccessorOas called with arguments:");
             System.out.println("  Session id: " + sSessId);
@@ -9958,7 +9659,7 @@ public class CommonSQLDAO{
 
 
         try {
-            HashSet hsOas = successorOasInternal(sUserName, sUserId, sTgtName, sTgtId);
+            HashSet hsOas = successorOasInternal(sUserName, sUserId, sTgtName, sTgtId, sPerm);
 
 
             Packet res = new Packet();
@@ -9974,7 +9675,7 @@ public class CommonSQLDAO{
         }
     }
 
-    private HashSet successorOasInternal(String sUserName, String sUserId, String sOaName, String sOaId) {
+    private HashSet successorOasInternal(String sUserName, String sUserId, String sOaName, String sOaId, String sPerm) {
         if (bMellPrint) {
             System.out.println("SuccessorOasInternal called with arguments:");
             System.out.println("  user name: " + sUserName);
@@ -10020,6 +9721,9 @@ public class CommonSQLDAO{
                 // For (each operation op in y's label
                 for (Enumeration ops = htYLabel.keys(); ops.hasMoreElements(); ) {
                     String sOp = (String)ops.nextElement();
+                    if(!sOp.equals(sPerm)){
+                        continue;
+                    }
                     // Here is the pcset corresponding to this op in y's label.
                     HashSet hsPcsOfOpInYLabel = (HashSet)htYLabel.get(sOp);
                     // If op is already a key in the new table,
@@ -10067,7 +9771,7 @@ public class CommonSQLDAO{
     }
 
     public Packet subsequentOas(String sSessId, String sUserName, String sUserId,
-                                String sUserType, String sTgtName, String sTgtId, String sTgtType) {
+                                String sUserType, String sTgtName, String sTgtId, String sTgtType, String sPerm) {
         if (!sUserType.equalsIgnoreCase(PM_NODE.USER.value))
             return failurePacket("subsequentOas: the marked node must be a user!");
         if (sUserId == null)
@@ -10148,12 +9852,12 @@ public class CommonSQLDAO{
 
             // If required PC set is a subset of covered PCs, then x is available for display.
             // if (hsReqdPcs.equals(hsCoveredPcs)) hsAvDisp.add(sPredId);
-            if (hsCoveredPcs.containsAll(hsReqdPcs)) {
+            /*if (hsCoveredPcs.containsAll(hsReqdPcs)) {
                 hsAvDisp.add(sPredId);
                 System.out.println("reqdPcs is a subset of coveredPcs, make "
                         + sPredName + " available for display");
                 continue;
-            }
+            }*/
 
             // If we got here, it means that predecessor node x is not (yet) available.
             System.out.println("Pred " + sPredName + " is not available for display");
@@ -10181,6 +9885,9 @@ public class CommonSQLDAO{
                 // For (each operation op in y's label
                 for (Enumeration ops = htYLabel.keys(); ops.hasMoreElements(); ) {
                     String sOp = (String)ops.nextElement();
+                    /*if(!sOp.equals(sPerm)){
+                        continue;
+                    }*/
                     // Here is the pcset corresponding to this op in y's label.
                     HashSet hsPcsOfOpInYLabel = (HashSet)htYLabel.get(sOp);
                     // If op is already a key in the new table,
@@ -10195,18 +9902,15 @@ public class CommonSQLDAO{
                         htNew.put(sOp,  new HashSet(hsPcsOfOpInYLabel));
                     }
                 }
-                System.out.println("For labeled node y = " + sYName);
-                System.out.println("  the new hashtable is");
                 for (Enumeration ops = htNew.keys(); ops.hasMoreElements(); ) {
                     String sOp = (String)ops.nextElement();
-                    System.out.print(sOp + " -> ");
                     HashSet hsPcs = (HashSet)htNew.get(sOp);
                     Iterator itPcs = hsPcs.iterator();
                     while (itPcs.hasNext()) {
                         String sPcId = (String)itPcs.next();
-                        System.out.print(graphMgr.getGraph().getNode(sPcId).getName() + ", ");
+                        //System.out.print(graphMgr.getGraph().getNode(sPcId).getName() + ", ");
                     }
-                    System.out.println();
+                    //System.out.println();
                 }
             }
             // Decide if the predecessor x is available for display.
@@ -10406,7 +10110,7 @@ public class CommonSQLDAO{
     // InitialOas() returns the initial set of oa nodes to display when a user
     // logs on and wants to explore his/her objects.
 
-    public Packet initialOas(String sSessId, String sUserName, String sUserId, String sUserType) {
+    public Packet initialOas(String sSessId, String sUserName, String sUserId, String sUserType, String sPerm) {
         if (bMellPrint) {
             System.out.println("InitialOas called with arguments:");
             System.out.println("  session id: " + sSessId);
@@ -10459,6 +10163,9 @@ public class CommonSQLDAO{
             // For each operation/access right
             for (Enumeration ops = htOaLabel.keys(); ops.hasMoreElements(); ) {
                 String sOp = (String)ops.nextElement();
+                /*if(!sOp.equals(perm)){
+                    continue;
+                }*/
                 // Extract the pcset corresponding to this operation/access right.
                 HashSet hsActualPcs = (HashSet)htOaLabel.get(sOp);
                 // if the set of required PCs is a subset of the actual pcset,
@@ -10929,7 +10636,6 @@ public class CommonSQLDAO{
                 // Find and insert its descendants (i.e., all oattr x such that crt ---> x)
                 // into the queue.
                 HashSet hsContainers = graphMgr.getGraph().getNode(sCrtId).getContainers();
-                graphMgr.printGraph();
                 Iterator itContainers = hsContainers.iterator();
                 while (itContainers.hasNext()) {
                     String sContId = (String)itContainers.next();
@@ -11526,10 +11232,10 @@ public class CommonSQLDAO{
         return res;
     }
 
-    public boolean oattrIsAccessible(String sUserId, String sOaId) throws Exception {
+    public boolean oattrIsAccessibleInternal(String sUserId, String sOaId) throws Exception {
         //return true;
-    	MySQL_Parameters params = new MySQL_Parameters();
-    	params.setOutParamType(ParamType.STRING);
+        MySQL_Parameters params = new MySQL_Parameters();
+        params.setOutParamType(ParamType.STRING);
         params.addParam(ParamType.INT, sUserId==null?null:Integer.valueOf(sUserId));
         params.addParam(ParamType.INT, sOaId==null?null:Integer.valueOf(sOaId));
         Object returned = executeFunction(IS_ACCESSIBLE, params);
@@ -11537,7 +11243,18 @@ public class CommonSQLDAO{
             return false;
         }
         Integer isAccessible = Integer.valueOf((String)returned);
-        return isAccessible==0?false:true;
+        return isAccessible != 0;
+    }
+
+    public Packet oattrIsAccessible(String sUserId, String sOaId){
+        Packet p = new Packet();
+        try {
+            p.addItem(ItemType.RESPONSE_TEXT, String.valueOf(oattrIsAccessibleInternal(sUserId, sOaId)));
+            return p;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return failurePacket(e.getMessage());
+        }
     }
 
 
@@ -11593,7 +11310,7 @@ public class CommonSQLDAO{
         String sUserId;
         String sUserName;
         try {
-            sUserId = getSessionUserId(sSessId);
+            sUserId = getSessionUserIdInternal(sSessId);
             if (sUserId == null) {
                 return failurePacket("Couldn't find the session or the user id!");
             }
@@ -11651,14 +11368,14 @@ public class CommonSQLDAO{
                         if (atts != null && atts.size() > 0) {
                             ArrayList<Integer> attachments = extractIntegers(atts);
                             //if (attachments != null && attachments.size() > 0) {
-                                //for (Integer i : attachments) {
-                                    result.addItem(ItemType.RESPONSE_TEXT, sLabel
-                                            + PM_ALT_FIELD_DELIM + getEntityName(String.valueOf(attachments.get(0)), PM_NODE.OATTR.value)
-                                            + PM_ALT_FIELD_DELIM + sSender
-                                            + PM_ALT_FIELD_DELIM + sRecip
-                                            + PM_ALT_FIELD_DELIM + sDate
-                                            + PM_ALT_FIELD_DELIM + sSubject);
-                                //}
+                            //for (Integer i : attachments) {
+                            result.addItem(ItemType.RESPONSE_TEXT, sLabel
+                                    + PM_ALT_FIELD_DELIM + getEntityName(String.valueOf(attachments.get(0)), PM_NODE.OATTR.value)
+                                    + PM_ALT_FIELD_DELIM + sSender
+                                    + PM_ALT_FIELD_DELIM + sRecip
+                                    + PM_ALT_FIELD_DELIM + sDate
+                                    + PM_ALT_FIELD_DELIM + sSubject);
+                            //}
                             //}
                         } else {
                             result.addItem(ItemType.RESPONSE_TEXT, sLabel
@@ -11905,6 +11622,7 @@ public class CommonSQLDAO{
             // Prepare the result for the successful case.
             res.addItem(ItemType.RESPONSE_TEXT, sOpsetName
                     + PM_FIELD_DELIM + opsetId);
+            addPmGraphNode(sOattrId, opsetId.toString(), sOpsetName, PM_NODE.OPSET.value);
         } catch (Exception e) {
             e.printStackTrace();
             return failurePacket(e.getMessage());
@@ -12341,11 +12059,15 @@ public class CommonSQLDAO{
             // Anyway, set the session, user or attr id:
             sDenyToId = sId;
 
+            Integer processId = -1;
+            Integer userId = -1;
             //create the new deny
             if(sDenyType.equals(PM_DENY_PROCESS)){
-                insert(ADD_PROCESS_DENY, sDenyName, sDenyType, Integer.valueOf(sDenyToId), bInters ? 1 : 0);
+                processId = Integer.valueOf(sDenyToId);
+                insert(ADD_PROCESS_DENY, sDenyName, sDenyType, processId, bInters ? 1 : 0);
             }else{
-                insert(ADD_DENY, sDenyName, sDenyType, Integer.valueOf(sDenyToId), null, bInters ? 1 : 0);
+                userId = Integer.valueOf(sDenyToId);
+                insert(ADD_DENY, sDenyName, sDenyType, userId, bInters ? 1 : 0);
             }
 
             sDenyId = getEntityId(sDenyName, PM_DENY);
@@ -12366,103 +12088,42 @@ public class CommonSQLDAO{
                 ops.add(sOp);
             }
 
-            Deny deny = new Deny(sDenyId, sDenyName, sDenyType, bInters, denyObjects, ops);
+            Deny deny = new Deny(sDenyId, sDenyName, sDenyType, processId, userId, bInters, denyObjects, ops);
             denyMgr.addDeny(deny);
             denyMgr.printDenies();
         }
 
-
-
-        /*if(sOattrName != null && sDenyId != null){
-            //add the oattr to the deny
-            addOattrToDeny(sDenyId, sOattrId, complement);
-        }
-
-        if(sOp != null){
-            //add op to deny
-            addOpToDeny(sDenyId, sOp);
-        }*/
-
-
-        /*// Now add the constraint if new.
-        if (sDenyId == null) {
-            MySQL_Parameters params = new MySQL_Parameters();
-            params.setOutParamType(ParamType.INT);
-            params.addParam(ParamType.STRING, sDenyName);
-            params.addParam(ParamType.STRING, sDenyType);
-            params.addParam(ParamType.INT, sDenyToId);
-            params.addParam(ParamType.STRING, sOp);
-            params.addParam(ParamType.INT, sOattrId);
-            params.addParam(ParamType.BOOLEAN, complement);
-            params.addParam(ParamType.BOOLEAN, bInters);
-            Object returned = executeFunction(CREATE_DENY, params);
-            if(returned == null) {
-                errorMessage = "Error creating deny";
-                return null;
-            }else{
-                sDenyId = String.valueOf(returned);
-            }*/
-
-        //create new deny. add to denymgr
-           /* HashSet<DenyObject> denyObjects = new HashSet<DenyObject>();
-            if(sOattrId != null) {
-                denyObjects.add(new DenyObject(sOattrId, complement));
-            }else if(sOattrName != null){
-                denyObjects.add(new DenyObject(getEntityId(sOattrName, PM_NODE.OATTR.value), complement));
-            }
-
-            HashSet<String> ops = new HashSet<String>();
-            ops.add(sOp);
-
-            Deny deny = new Deny(sDenyId, sDenyName, sDenyType, bInters, denyObjects, ops);
-            denyMgr.addDeny(deny);
-            denyMgr.printDenies();*/
-        //} else {
         Integer denyId = Integer.valueOf(sDenyId);
         //update an existing deny -- get deny by id call appropriate Deny methods
         Deny deny = denyMgr.getDeny(sDenyId);
 
-        // Deny exists, try to add the operation and/or container, which
-        // cannot be
-        // duplicate or both null.
-            /*if ((sOp == null || sOp.length() == 0)
-                    && (sOattrId == null || sOattrId.length() == 0)) {
-                errorMessage = "Please select an operation and/or a container!";
-                return null;
-            }*/
-
         if (sOp != null) {
-            if (denyHasOp(sDenyId, sOp)) {
-                errorMessage = "Duplicate operation " + sOp
-                        + " in deny constraint!";
-                return null;
+            if (!denyHasOp(sDenyId, sOp)) {
+                // Add the operation.
+
+                MySQL_Parameters params = new MySQL_Parameters();
+                params.addParam(ParamType.INT, Integer.valueOf(sDenyId));
+                params.addParam(ParamType.STRING, sOp);
+                insert(ADD_DENY_OP, params);
+
+                deny.addOp(sOp);
             }
-            // Add the operation.
-
-            MySQL_Parameters params = new MySQL_Parameters();
-            params.addParam(ParamType.INT, Integer.valueOf(sDenyId));
-            params.addParam(ParamType.STRING, sOp);
-            insert(ADD_DENY_OP, params);
-
-            deny.addOp(sOp);
         }
         if (sOattrId != null) {
-            if (denyHasOattr(sDenyId, sOattrId)) {
-                errorMessage = "Duplicate container " + sOattrName
-                        + " in deny constraint!";
-                return null;
-            }
-            if (sOattrName != null && sOattrName.startsWith("!")) {
-                sOattrId = "!" + sOattrId;
-            }
-            MySQL_Parameters params = new MySQL_Parameters();
-            params.addParam(ParamType.INT, Integer.valueOf(sDenyId));
-            params.addParam(ParamType.INT, Integer.valueOf(sOattrId));
-            params.addParam(ParamType.INT, complement ? 1 : 0);
+            if (!denyHasOattr(sDenyId, sOattrId)) {
 
-            insert(ADD_DENY_OBJ_ID, params);
+                if (sOattrName != null && sOattrName.startsWith("!")) {
+                    sOattrId = "!" + sOattrId;
+                }
+                MySQL_Parameters params = new MySQL_Parameters();
+                params.addParam(ParamType.INT, Integer.valueOf(sDenyId));
+                params.addParam(ParamType.INT, Integer.valueOf(sOattrId));
+                params.addParam(ParamType.INT, complement ? 1 : 0);
 
-            deny.addObject(sOattrId, complement);
+                insert(ADD_DENY_OBJ_ID, params);
+
+                deny.addObject(sOattrId, complement);
+            }
         }
         denyMgr.updateDeny(deny);
         //}
@@ -12520,8 +12181,7 @@ public class CommonSQLDAO{
                 denyToId = processId;
             }
 
-            info.add(denyType + PM_FIELD_DELIM
-                    + denyToName + PM_FIELD_DELIM + denyToId + PM_FIELD_DELIM + denyIsIn);
+            info.add(denyType + PM_FIELD_DELIM + denyToName + PM_FIELD_DELIM + denyToId + PM_FIELD_DELIM + denyIsIn);
         } catch (Exception e) {
             e.printStackTrace();
             errorMessage = "Exception in getDenySimpleInfo: "
@@ -12529,6 +12189,41 @@ public class CommonSQLDAO{
             return null;
         }
         return info;
+    }
+
+    private boolean objectInDeny(String objId, Deny d){
+        //if INTERSEECTION
+        //if obj is ascendant of any objects in d, check if that object in d is NOT compliment
+        //OR
+        //if obj is NOT ascendant of any objects in d, check if those object are compliment
+        //ELSE
+        //same
+
+        //(is_ascendant_of(obj_id,D.object_attribute_id) AND NOT object_complement)
+        // OR (!is_ascendant_of(obj_id,D.object_attribute_id) AND object_complement)
+        if (d.isIntersection()) {
+            HashSet<DenyObject> objects = d.getObjects();
+            return getObjInDenyCount(objId, objects) == objects.size();
+        }else{
+            HashSet<DenyObject> objects = d.getObjects();
+            return getObjInDenyCount(objId, objects) > 0;
+        }
+    }
+
+    private int getObjInDenyCount(String objId, HashSet<DenyObject> objects){
+        try {
+            int c = 0;
+            for (DenyObject o : objects) {
+                if ((memIsAscendant(objId, o.getId()) && !o.isCompliment())
+                        || (!memIsAscendant(objId, o.getId()) && o.isCompliment())) {
+                    c++;
+                }
+            }
+            return c;
+        }catch(Exception e){
+            e.printStackTrace();
+            return -1;
+        }
     }
 
     // Compute and return the permissions denied to the user/process/session.
@@ -12539,13 +12234,13 @@ public class CommonSQLDAO{
     // the denied permissions.
     public HashSet<String> getDeniedPerms(String sCrtSessId, String sUserId,
                                           String sCrtProcId, String sEntId, String sEntType) throws Exception {
-        System.out.println("GetDeniedPerms called with arguments:");
+        /*System.out.println("GetDeniedPerms called with arguments:");
         System.out.println("	sCrtSessId: " + sCrtSessId);
         System.out.println("	sUserId: " + sUserId);
         System.out.println("	sCrtProcId: " + sCrtProcId);
         System.out.println("	sEntId: " + sEntId);
         System.out.println("	sEntType: " + sEntType);
-        System.out.println("	sEntName: " + getEntityName(sEntId, sEntType));
+        System.out.println("	sEntName: " + getEntityName(sEntId, sEntType));*/
 
         HashSet<String> deniedOps = new HashSet<String>();
 
@@ -12555,11 +12250,36 @@ public class CommonSQLDAO{
         //			return deniedOps;
         //		}
         // Get the user of the current session.
-        if ((sUserId == null || sUserId.isEmpty()) && (sCrtSessId == null || sCrtSessId.isEmpty()))
-            return deniedOps;
+        /*if ((sUserId == null || sUserId.isEmpty()) *//*&& (sCrtSessId == null || sCrtSessId.isEmpty())*//*)
+            return deniedOps;*/
 
-        if (sUserId == null || sUserId.length() == 0) sUserId = getSessionUserId(sCrtSessId);
+        if (sUserId == null || sUserId.length() == 0) sUserId = getSessionUserIdInternal(sCrtSessId);
 
+        long s = System.nanoTime();
+        List<Deny> denies = ServerConfig.denyMgr.getDenies();
+        for(Deny d : denies) {
+            boolean inter = d.isIntersection();
+            HashSet<DenyObject> objects = d.getObjects();
+            HashSet<String> ops = d.getOps();
+            sCrtProcId = (sCrtProcId == null ? String.valueOf(d.getProcessId()) : sCrtProcId);
+            if (memIsAscendant(sUserId, String.valueOf(d.getUserId()))
+                    || (!sCrtProcId.equals("-1") && sCrtProcId.equals(String.valueOf(d.getProcessId())))){
+                if(objectInDeny(sEntId, d)){
+                    deniedOps.addAll(d.getOps());
+                }
+            }
+        }
+        long e = System.nanoTime();
+        System.out.println("***\nSingle object MEMORY: " + (double)((e-s)/1000000000.0f));
+        //(is the user id an ascendant of the id in the deny
+        //OR
+        //is the process id in the deny)
+        //AND
+        //is the object in the deny
+
+
+
+        /*s = System.nanoTime();
         MySQL_Parameters params = new MySQL_Parameters();
         params.addParam(ParamType.STRING, sCrtProcId);
         params.addParam(ParamType.INT, sUserId);
@@ -12572,8 +12292,11 @@ public class CommonSQLDAO{
         for(ArrayList<Object> op : returned){
             deniedOps.add(op.get(0).toString());
         }
+        e = System.nanoTime();
+        System.out.println("Single object DISK: " + ((e-s)) + "\n***");*/
+
         printSet(deniedOps, PM_PERM, "Operations denied for user "
-                + getEntityName(sUserId,PM_NODE.USER.value) + " and entity "
+                + getEntityName(sUserId, PM_NODE.USER.value) + " and entity "
                 + getEntityName(sEntId, sEntType));
         return deniedOps;
     }
@@ -12663,8 +12386,23 @@ public class CommonSQLDAO{
         return repo;
     }
 
-    public static void main(String[] args){
-        System.out.println(UUID.randomUUID().toString());
+    public List<String> getMembers(String u, String i, String perm){
+        List<String> pos = new ArrayList<String>();
+        pos.add(i);
+        Packet p = getMellMembersOf(u, i, perm);
+        for(int j = 0; j < p.size(); j++){
+            String[] mem = p.getStringValue(j).split(":");
+            String type = mem[0];
+            String id = mem[1];
+            String name = mem[2];
+            pos.addAll(getMembers(u, id, perm));
+        }
+        return pos;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("1/2/3".split("/")[1]);
+
         /*int num = 500;
         String cmd = "";
 
@@ -12822,7 +12560,7 @@ public class CommonSQLDAO{
                 return failurePacket("No such record " + pieces[4]);
             }
             // Call Stored Proc
-            addCompsToOattr(sRecId, sComps);
+            addCompsToOattrInternal(sRecId, sComps);
             System.out.println("Record Comps created Successfully.");
             return SQLPacketHandler.getSuccessPacket();
         } catch (Exception e) {
@@ -12871,7 +12609,7 @@ public class CommonSQLDAO{
                 if (sTplId == null) {
                     return failurePacket("No such template " + sTplName);
                 }
-                addTemplateToRecord(sRecId, sTplId);
+                addTemplateToRecordInternal(sRecId, sTplId);
                 return SQLPacketHandler.getSuccessPacket();
             } else {
                 return failurePacket("Wrong type in cmdAddTpl(): " + sType);
@@ -14041,7 +13779,7 @@ public class CommonSQLDAO{
         return sSelectedUa;
     }
 
-    public void addCompsToOattr(String sId, String comps) throws Exception {
+    public void addCompsToOattrInternal(String sId, String comps) throws Exception {
         String[] pieces = comps.split(PM_FIELD_DELIM);
         int order = 1;
         for(String p : pieces){
@@ -14050,6 +13788,16 @@ public class CommonSQLDAO{
             params.addParam(ParamType.INT, getEntityId(p, PM_NODE.OATTR.value));
             params.addParam(ParamType.INT, order++);
             insert(ADD_COMP_TO_OATTR, params);
+        }
+    }
+
+    public Packet addCompsToRecord(String sId, String comps){
+        try {
+            addCompsToOattrInternal(sId, comps);
+            return getSuccessPacket();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return failurePacket(e.getMessage());
         }
     }
 
@@ -14094,7 +13842,7 @@ public class CommonSQLDAO{
         // Get the session's active attributes and the policy classes (as
         // Vectors).
         System.out.println("GPOInternal> sSessId: " + sSessId);
-        String sUserId = getSessionUserId(sSessId);
+        String sUserId = getSessionUserIdInternal(sSessId);
         System.out.println("GPOInternal> User: " + sUserId);
         activeAttrs = getUserDescendantsInternalVector(sUserId);
         policyClasses = getPolicyClasses();
@@ -14750,13 +14498,25 @@ public class CommonSQLDAO{
      * @param sSessId session ID
      * @return the ID of the user ID
      */
-    public String getSessionUserId(String sSessId) throws Exception {
+    public String getSessionUserIdInternal(String sSessId) throws Exception {
         MySQL_Parameters params = new MySQL_Parameters();
         params.addParam(ParamType.INT, sSessId);
         System.out.println(sSessId);
         ArrayList<Integer> ints = extractIntegers(select(GET_SESS_USER_ID, params));
         String userId = (ints == null || ints.isEmpty()) ? null : String.valueOf(ints.get(0));
         return userId;
+    }
+
+    public Packet getSessionUserId(String sSessId){
+        try {
+            String userId = getSessionUserIdInternal(sSessId);
+            Packet p = new Packet();
+            p.addItem(ItemType.RESPONSE_TEXT, userId);
+            return p;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return failurePacket(e.getMessage());
+        }
     }
 
 
@@ -15330,6 +15090,10 @@ public class CommonSQLDAO{
             return false;
         }
 
+        if(sId == null){
+            return true;
+        }
+
         if (!sClass.equals(PM_CLASS_USER_NAME)
                 && !sClass.equals(PM_CLASS_UATTR_NAME)
                 && !sClass.equals(PM_CLASS_OBJ_NAME)
@@ -15579,7 +15343,7 @@ public class CommonSQLDAO{
 
             // Create a user Node
             Integer newNodeId = createNode(sName, PM_NODE.UATTR.value, sDescr,
-                    sBaseId == null ? 1 : Integer.valueOf(sBaseId));
+                    sBaseId == null ? null : Integer.valueOf(sBaseId));
 
             // Add the attribute's properties, if any.
             if(sProps != null && sProps.length > 0){
@@ -15921,6 +15685,9 @@ public class CommonSQLDAO{
     public HashSet<String> getFromAttrsSet(String baseId, String attrsType, int depth){
         HashSet<String> attrs = new HashSet<String>();
         List<Integer> iAttrs = getFromAttrs(baseId, attrsType, depth);
+        if(iAttrs == null){
+            return attrs;
+        }
         for(Integer i : iAttrs){
             attrs.add(i.toString());
         }
@@ -15930,10 +15697,22 @@ public class CommonSQLDAO{
     public HashSet<String> getToAttrsSet(String baseId, String attrsType, int depth){
         HashSet<String> attrs = new HashSet<String>();
         List<Integer> iAttrs = getToAttrs(baseId, attrsType, depth);
+        if(iAttrs == null){
+            return attrs;
+        }
         for(Integer i : iAttrs){
             attrs.add(i.toString());
         }
         return attrs;
+    }
+
+    private ArrayList<Integer> setToList(HashSet<String> hs){
+        ArrayList<Integer> list = new ArrayList<Integer>();
+        Iterator<String> iter = hs.iterator();
+        while(iter.hasNext()){
+            list.add(Integer.valueOf(iter.next()));
+        }
+        return list;
     }
 
     /**
@@ -15957,6 +15736,12 @@ public class CommonSQLDAO{
                     return extractIntegers(select(GET_FROM_ATTRS, params));
                 } else {
                     //there is a depth - hardcoded 1
+                    if(graphMgr.isBuilt()) {
+                        PmGraphNode node = graphMgr.getNode(baseId);
+                        if(node != null){
+                            return setToList(node.getMembers());
+                        }
+                    }
                     return extractIntegers(select(GET_FROM_ATTRS_D, params));
                 }
 
@@ -15968,6 +15753,20 @@ public class CommonSQLDAO{
                     return extractIntegers(select(GET_FROM_ATTRS_T, params));
                 } else {
                     //depth and type - hardcoded as 1
+                    //return extractIntegers(select(GET_FROM_ATTRS_T_D, params));
+                    if(graphMgr.isBuilt()) {
+                        PmGraphNode node = graphMgr.getNode(baseId);
+                        if (node != null) {
+                            ArrayList<Integer> attrs = new ArrayList<Integer>();
+                            HashSet<String> members = node.getMembers();
+                            for (String m : members) {
+                                if (graphMgr.getNode(m).getType().equals(attrsType)) {
+                                    attrs.add(Integer.valueOf(m));
+                                }
+                            }
+                            return attrs;
+                        }
+                    }
                     return extractIntegers(select(GET_FROM_ATTRS_T_D, params));
                 }
             }

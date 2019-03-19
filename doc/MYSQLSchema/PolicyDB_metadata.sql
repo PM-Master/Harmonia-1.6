@@ -98,7 +98,7 @@ INSERT INTO operation_set_details (operation_set_details_node_id, operation_id) 
                 (7, 3);
 INSERT INTO host (host_id, host_name, workarea_path) VALUES
                 (1, 'Dummy_host', 'dummy'),
-(100, 'SERVER_COMPUTER_NAME', 'C:\\PMWorkarea');
+(100, 'P860658', 'C:\\PMWorkarea');
 INSERT INTO user_detail (user_node_id, user_name, full_name, password, email_address, host_id, pop_server, smtp_server, account_name) VALUES
                 (4, 'super', 'SuperFirst', '100fd8433286961fcfa4cee541667c90dd6eaf22632fe284e4fded3f340c9d9b2245bb6224eec853f513c11a68ccaf74900a42f11277d6c3145d58daf1b99ce1cdd1b5882fd1d7f1e453f6923e6a95ca5d3', NULL, NULL, NULL, NULL, NULL);
 INSERT INTO assignment_path (assignment_path_id, assignment_node_id) VALUES

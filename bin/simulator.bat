@@ -19,7 +19,7 @@ set MY_KEYSTORE=%computername%Keystore
 
 set MY_KEYSTORE_PASSWORD=aaaaaa
 
-set MY_TRUSTSTORE=clientTruststore
+set MY_TRUSTSTORE=pmserverTruststore
 
 set ENGINE_HOST=%computername%
 

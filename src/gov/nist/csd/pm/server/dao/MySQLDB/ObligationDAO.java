@@ -12,6 +12,7 @@ import gov.nist.csd.pm.common.util.UtilMethods;
 import gov.nist.csd.pm.server.audit.Audit;
 import gov.nist.csd.pm.server.packet.SQLPacketHandler;
 import gov.nist.csd.pm.server.parser.*;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
@@ -566,6 +567,8 @@ public class ObligationDAO extends CommonSQLDAO{
                                         String sSourceScriptId) {
         try {
             System.out.println("Adding line " + n + ":<" + sLine + ">");
+            
+            if (sLine == null ) sLine = "      "; 
             insert(ADD_LINE_TO_SOURCE, sSourceScriptId, sLine, n);
             return SQLPacketHandler.getSuccessPacket();
         } catch (Exception e) {
@@ -3524,7 +3527,7 @@ public class ObligationDAO extends CommonSQLDAO{
         ActOpnd[] res = new ActOpnd[1];
 
         String sSessId = eventctx.getSessId();
-        String sUserId = ServerConfig.SQLDAO.getSessionUserId(sSessId);
+        String sUserId = ServerConfig.SQLDAO.getSessionUserIdInternal(sSessId);
         if (sUserId == null) {
             res[0] = new ActOpnd(null, null, null, false, false,
                     "No user for session " + sSessId);
@@ -4144,7 +4147,7 @@ public class ObligationDAO extends CommonSQLDAO{
         ActOpnd[] res = new ActOpnd[1];
 
         String sSessId = eventctx.getSessId();
-        String sUserId = ServerConfig.SQLDAO.getSessionUserId(sSessId);
+        String sUserId = ServerConfig.SQLDAO.getSessionUserIdInternal(sSessId);
         if (sUserId == null) {
             res[0] = new ActOpnd(null, null, null, false, false,
                     "No user for session " + sSessId);
@@ -5097,7 +5100,7 @@ public class ObligationDAO extends CommonSQLDAO{
         ActOpnd[] res = new ActOpnd[1];
 
         String sSessId = eventctx.getSessId();
-        String sUserId = ServerConfig.SQLDAO.getSessionUserId(sSessId);
+        String sUserId = ServerConfig.SQLDAO.getSessionUserIdInternal(sSessId);
         if (sUserId == null) {
             res[0] = new ActOpnd(null, null, null, false, false,
                     "No user for session " + sSessId);
@@ -6249,11 +6252,16 @@ public class ObligationDAO extends CommonSQLDAO{
             // If the pattern's objspec is not null and is not '*', check
             // the objname/objid of the event against the pattern's.
             if (sPatObjSpec != null && !sPatObjSpec.equals("*")) {
+                System.out.println("===========sPatObjSpec is " + sPatObjSpec);
                 // The pattern's objspec has the format type|name, where the
                 // type should be 'b'.
                 String[] pieces = sPatObjSpec.split(GlobalConstants.PM_ALT_DELIM_PATTERN);
                 // Pieces[0] is the type (oc or b). Pieces[1] is the id.
-                String sPatObjName = pieces[1];
+                System.out.println("===========Pieces[0] is " + pieces[0]);
+                System.out.println("===========sEventObjName is " + sEventObjName);
+                
+                System.out.println("===========Pieces[1] is Erroring out??????????????????????");
+                String sPatObjName = pieces[0];
 
                 if (!sEventObjName.equalsIgnoreCase(sPatObjName)) {
                     return failurePacket("Event's object does not match pattern object spec!");
@@ -6327,8 +6335,8 @@ public class ObligationDAO extends CommonSQLDAO{
             }
             return failurePacket("Event's object does not match pattern container specs!");
         } catch (Exception e) {
-            e.printStackTrace();
-            return failurePacket("Exception during event object matching!");
+            e.printStackTrace(System.out);
+            return failurePacket(e.getMessage() + " - Exception during event object matching!");
         }
     }
 
@@ -6354,9 +6362,11 @@ public class ObligationDAO extends CommonSQLDAO{
 
             for (String sOpSpec : sOpSpecs) {
                 if (sEventOp.equalsIgnoreCase(sOpSpec)) {
+                    System.out.println(" **************** in the loop for *******************" + sOpSpec);
                     return SQLPacketHandler.getSuccessPacket();
                 }
             }
+            System.out.println(" *************************** " + sEventOp);
             return failurePacket("Event operation doesn't match specs!");
         } catch (Exception e) {
             e.printStackTrace();
@@ -6402,7 +6412,7 @@ public class ObligationDAO extends CommonSQLDAO{
             // is specified in the pattern.
             // Check whether the event's user/session/process matches any of
             // those specified.
-            String sSessUserId = ServerConfig.SQLDAO.getSessionUserId(sSessId);
+            String sSessUserId = ServerConfig.SQLDAO.getSessionUserIdInternal(sSessId);
             // System.out.println("Event user is " + sSessUserId);
             for (String sUserSpec : sUserSpecs) {
                 System.out.println("Found user spec " + sUserSpec);
@@ -6533,7 +6543,7 @@ public class ObligationDAO extends CommonSQLDAO{
     }
 
     public boolean userIsInPolicy(String sSessId, String sPolId) throws Exception {
-        String sUserId = ServerConfig.SQLDAO.getSessionUserId(sSessId);
+        String sUserId = ServerConfig.SQLDAO.getSessionUserIdInternal(sSessId);
         return ServerConfig.SQLDAO.userIsAscendantToPolicy(sUserId, sPolId);
     }
 
@@ -7110,7 +7120,7 @@ public class ObligationDAO extends CommonSQLDAO{
         String sAction = null;
         try {
             sHost = ServerConfig.SQLDAO.getSessionHostName(sSessId);
-            sUserId = ServerConfig.SQLDAO.getSessionUserId(sSessId);
+            sUserId = ServerConfig.SQLDAO.getSessionUserIdInternal(sSessId);
             sUser = ServerConfig.SQLDAO.getEntityName(sUserId, PM_NODE.USER.value);
             sAction = sEventName;
             // Addition Finished - NDK

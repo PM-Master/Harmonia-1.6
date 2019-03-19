@@ -75,20 +75,20 @@ public class MySQL_StoredProcedures {
 					if (type.equals(ParamType.INT.getName())) {
 						//System.out.println("Integer Value is " + value);
 						if (value == null) {
-							cs.setNull(i + 1, java.sql.Types.INTEGER);
+							cs.setNull(i + 1, Types.INTEGER);
 						} else
 							cs.setInt(i + 1, Integer.parseInt(value));
 					} else if (type.equals(ParamType.STRING.getName())) {
 						//System.out.println("String Value is " + value);
 						if (value == null) {
-							cs.setNull(i + 1, java.sql.Types.VARCHAR);
+							cs.setNull(i + 1, Types.VARCHAR);
 						} else {
 							cs.setString(i + 1, value);
 						}
 					} else if (type.equals(ParamType.BOOLEAN.getName())) {
 						//System.out.println("Boolean Value is " + value);
 						if (value == null) {
-							cs.setNull(i + 1, java.sql.Types.BOOLEAN);
+							cs.setNull(i + 1, Types.BOOLEAN);
 						} else {
 							cs.setBoolean(i + 1, Boolean.parseBoolean(value));
 						}

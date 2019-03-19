@@ -54,7 +54,7 @@ public class DDLParser extends JFrame implements PropertyChangeListener{
 	private JTextArea outputWindow;
 
 	/**
-	 * The SchemaBuilder3 instance which will handle creathing the OAs
+	 * The SchemaBuilder instance which will handle creathing the OAs
 	 */
 	private SchemaBuilder3 schema;
 

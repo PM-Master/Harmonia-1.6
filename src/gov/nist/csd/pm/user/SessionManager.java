@@ -75,7 +75,7 @@ public class SessionManager extends JFrame implements ActionListener, PropertyCh
     public static final String PM_NODE_OPSETA = "S";
     public static final String PM_NODE_CONN = "c";
     public static final String PM_NODE_CONNA = "C";
-    public static final String PM_OBJ = "ob";
+    public static final String PM_OBJ = "o";
     public static final String PM_FIELD_DELIM = ":";
     public static final String PM_TERMINATOR = ".";
     public static final String PM_ALT_FIELD_DELIM = "|";

@@ -11,6 +11,17 @@ import java.util.ArrayList;
 
 public class MySQL_Statements {
 	/**
+	 * node_opsets
+	 */
+	public static final String ADD_NODE_OPSET = "insert into node_opsets values(?,?)";
+	public static final String DEELTE_NODE_OPSET = "delete from node_opsets where node_id=? and opset_id=?";
+
+	/**
+	 * Intersection of row and column
+	 */
+	public static final String GET_INTERSECTION = "select assignment.end_node_id from assignment inner join (select assignment.end_node_id from assignment where assignment.start_node_id = ? and assignment.depth = 1) COL on col.end_node_id = assignment.end_node_id where start_node_id = ? and assignment.depth = 1;";
+
+	/**
 	 * obligations
 	 */
     public static final String DELETE_ASSIGNMENT_BY_PATH = "delete from assignment where start_node_id=?,end_node_id=?,assignment_path_id=?";
@@ -72,14 +83,16 @@ public class MySQL_Statements {
 
 
     public static final String GET_ALL_ACC_NODES = "select node_id from node where is_accessible(?, node_id) = true";
-	public static final String GET_ALL_NODES = "select node_id from node";
+	public static final String GET_ALL_NODES = "select name,node_id,get_node_type_name(node_type_id) from node";
 
 	/**
 	 * Paths
 	 */
 	public static final String GET_PATHS = "SELECT path FROM assignment where end_node_id=? and path is not null";
-	public static final String GET_NODE_PATHS = "SELECT path FROM path_view where node_id = ?";
-	public static final String ADD_TO_PATH = "insert into path (path_id, node_id) values (?,?)";
+	public static final String GET_PATH = "select path_id, path_node_id, node_id, sequence from policyenginedb.node_paths where node_id=? order by sequence and path_id;";
+	public static final String GET_LAST_PATH_ID = "SELECT max(path_id) FROM policyenginedb.node_paths";
+	public static final String GET_NODE_PATH_IDS = "select path_id from policyenginedb.path_view where node_id=?";
+	public static final String ADD_TO_PATH = "insert into policyenginedb.node_paths (path_id, path_node_id, node_id, sequence) values (?,?,?,?)";
     public static final String CHECK_NAME_EXISTS_IN_PATH = "select case when count(*) > 0 then true else false end from path_view_names where path like concat('%', get_node_name(?), '%') and node_name=?";
     public static final String GET_FROM_ATTRS_T_D_PATHS = "select path from path_view join node on path_view.node_id = node.node_id join node_type on node.node_type_id = node_type.node_type_id where path not like concat('%', ?, '>%>%') AND path like concat('%', ?, '%') AND node_type.name = ?";
 
@@ -140,6 +153,8 @@ public class MySQL_Statements {
 	public static final String ADD_DENY				= "insert into deny (deny_name, deny_type_id, user_attribute_id, is_intersection) values (?,get_deny_type_id(?),?,?)";
 	public static final String ADD_PROCESS_DENY		= "insert into deny (deny_name, deny_type_id, process_id, is_intersection) values (?,get_deny_type_id(?),?,?)";
 	public static final String ADD_OATTR_TO_DENY 	= "insert into deny_obj_attribute values(?,?,?)";
+	public static final String DELETE_DENY_OPS		= "delete from deny_operation where deny_id=?";
+	public static final String DELETE_DENY_OBJECTS 	= "delete from deny_obj_attribute where deny_id=?";
 
 	/**
 	 * host
@@ -171,7 +186,7 @@ public class MySQL_Statements {
 	public static final String GET_ALL_PROPERTIES 	= "SELECT NODE_PROPERTY.property_KEY, property.property_value FROM property";
 	public static final String DELETE_PROPERTY 		= "delete from NODE_PROPERTY where property_node_id = ? and upper(concat(property_key, '" + GlobalConstants.PM_PROP_DELIM + "', property_value)) = upper(?)";
 	public static final String REPLACE_PROP 		= "update NODE_PROPERTY set property_key=?, property_value=? where property_node_id = ? and upper(concat(property_KEY, '" + GlobalConstants.PM_PROP_DELIM + "', property_value)) = upper(?)";
-
+	public static final String GET_NODE_PROP_VALUE  = "SELECT concat(NODE_PROPERTY.property_value) FROM NODE_PROPERTY WHERE PROPERTY_NODE_ID = ? and property_key = ?";
 	/**
 	 * object_class
 	 */
@@ -316,6 +331,9 @@ public class MySQL_Statements {
 	public static final String GET_FROM_ATTRS_D		= "select assignment.end_node_id from assignment where assignment.start_node_id = ? and assignment.depth = 1";
 	public static final String GET_FROM_ATTRS_T		= "select assignment.end_node_id from assignment join node on node.node_id = assignment.end_node_id join node_type on node_type.node_type_id = node.node_type_id where assignment.start_node_id = ? and node_type.name = ?";
 	public static final String GET_FROM_ATTRS_T_D	= "select assignment.end_node_id from assignment join node on node.node_id = assignment.end_node_id join node_type on node_type.node_type_id = node.node_type_id where assignment.start_node_id = ? and node_type.name = ? and assignment.depth = 1";
+	public static final String GET_MEMBERS_U_UA		= "select distinct get_node_type_name(node.node_type_id), assignment.end_node_id, node.name from assignment join node on node.node_id = assignment.end_node_id where assignment.start_node_id=? and (node.node_type_id=4 || node.node_type_id=3) and assignment.depth = 1;";
+	public static final String GET_MEMBERS_POL		= "select distinct get_node_type_name(node.node_type_id), assignment.end_node_id, node.name from assignment join node on node.node_id = assignment.end_node_id where assignment.start_node_id=? and node.node_type_id=2 and assignment.depth = 1;";
+
 
 	/**
 	 * getToAttrs
@@ -460,6 +478,7 @@ public class MySQL_Statements {
 		try{
 			ServerConfig.conn = ServerConfig.pmDB.getConnection();
 			ps = prepareSQLStatement(sql, params);
+			System.out.println(params.toString());
 			ps.executeUpdate();
 		}catch(Exception e){
 			throw new Exception("Exception in insert: " + e.getMessage());
