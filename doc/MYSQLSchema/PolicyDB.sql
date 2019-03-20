@@ -110,7 +110,10 @@ CREATE TABLE IF NOT EXISTS `application` (
   CONSTRAINT `fk_application_host_id` FOREIGN KEY (`host_id`) REFERENCES `host` (`host_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='application';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.application: ~0 rows (approximately)
+/*!40000 ALTER TABLE `application` DISABLE KEYS */;
+/*!40000 ALTER TABLE `application` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.assignment
 CREATE TABLE IF NOT EXISTS `assignment` (
   `assignment_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -126,7 +129,27 @@ CREATE TABLE IF NOT EXISTS `assignment` (
   CONSTRAINT `fk_start_node_id` FOREIGN KEY (`start_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table stores assignment relations';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.assignment: ~16 rows (approximately)
+/*!40000 ALTER TABLE `assignment` DISABLE KEYS */;
+INSERT INTO `assignment` (`assignment_id`, `start_node_id`, `end_node_id`, `depth`, `assignment_path_id`) VALUES
+	(13, 1, 1, 0, NULL),
+	(14, 1, 2, 1, 1),
+	(4, 1, 3, 2, 2),
+	(11, 1, 5, 2, 4),
+	(8, 1, 4, 3, 3),
+	(1, 2, 2, 0, NULL),
+	(3, 2, 3, 1, 2),
+	(10, 2, 5, 1, 4),
+	(7, 2, 4, 2, 3),
+	(2, 3, 3, 0, NULL),
+	(6, 3, 4, 1, 3),
+	(5, 4, 4, 0, NULL),
+	(9, 5, 5, 0, NULL),
+	(15, 5, 7, 1, NULL),
+	(12, 7, 7, 0, NULL),
+	(16, 7, 3, 1, NULL);
+/*!40000 ALTER TABLE `assignment` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.assignment_path
 CREATE TABLE IF NOT EXISTS `assignment_path` (
   `assignment_path_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -136,7 +159,15 @@ CREATE TABLE IF NOT EXISTS `assignment_path` (
   CONSTRAINT `fk_assignment_node_id` FOREIGN KEY (`assignment_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.assignment_path: ~4 rows (approximately)
+/*!40000 ALTER TABLE `assignment_path` DISABLE KEYS */;
+INSERT INTO `assignment_path` (`assignment_path_id`, `assignment_node_id`) VALUES
+	(1, 2),
+	(2, 3),
+	(3, 4),
+	(4, 5);
+/*!40000 ALTER TABLE `assignment_path` ENABLE KEYS */;
+
 -- Dumping structure for view policydb.assignment_view
 -- Creating temporary table to overcome VIEW dependency errors
 CREATE TABLE `assignment_view` (
@@ -170,7 +201,10 @@ CREATE TABLE IF NOT EXISTS `audit_information` (
   `OBJ_NAME` varchar(80) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.audit_information: ~0 rows (approximately)
+/*!40000 ALTER TABLE `audit_information` DISABLE KEYS */;
+/*!40000 ALTER TABLE `audit_information` ENABLE KEYS */;
+
 -- Dumping structure for procedure policydb.create_assignment
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `create_assignment`(start_node int, end_node int)
@@ -516,7 +550,10 @@ CREATE TABLE IF NOT EXISTS `deny` (
   CONSTRAINT `fk_deny_user_attribute_node_id` FOREIGN KEY (`user_attribute_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Deny';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.deny: ~0 rows (approximately)
+/*!40000 ALTER TABLE `deny` DISABLE KEYS */;
+/*!40000 ALTER TABLE `deny` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.deny_obj_attribute
 CREATE TABLE IF NOT EXISTS `deny_obj_attribute` (
   `deny_id` int(11) NOT NULL,
@@ -528,7 +565,10 @@ CREATE TABLE IF NOT EXISTS `deny_obj_attribute` (
   CONSTRAINT `fk_deny_obj_attr` FOREIGN KEY (`object_attribute_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.deny_obj_attribute: ~0 rows (approximately)
+/*!40000 ALTER TABLE `deny_obj_attribute` DISABLE KEYS */;
+/*!40000 ALTER TABLE `deny_obj_attribute` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.deny_operation
 CREATE TABLE IF NOT EXISTS `deny_operation` (
   `deny_id` int(11) NOT NULL,
@@ -539,7 +579,10 @@ CREATE TABLE IF NOT EXISTS `deny_operation` (
   CONSTRAINT `fk_op_deny_id` FOREIGN KEY (`deny_id`) REFERENCES `deny` (`deny_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.deny_operation: ~0 rows (approximately)
+/*!40000 ALTER TABLE `deny_operation` DISABLE KEYS */;
+/*!40000 ALTER TABLE `deny_operation` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.deny_type
 CREATE TABLE IF NOT EXISTS `deny_type` (
   `deny_type_id` int(11) NOT NULL,
@@ -547,7 +590,14 @@ CREATE TABLE IF NOT EXISTS `deny_type` (
   PRIMARY KEY (`deny_type_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Deny types';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.deny_type: ~3 rows (approximately)
+/*!40000 ALTER TABLE `deny_type` DISABLE KEYS */;
+INSERT INTO `deny_type` (`deny_type_id`, `name`) VALUES
+	(1, 'user id'),
+	(2, 'user set'),
+	(3, 'process');
+/*!40000 ALTER TABLE `deny_type` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.email_attachment
 CREATE TABLE IF NOT EXISTS `email_attachment` (
   `object_node_id` int(11) NOT NULL,
@@ -557,7 +607,10 @@ CREATE TABLE IF NOT EXISTS `email_attachment` (
   CONSTRAINT `fk_att_node_id` FOREIGN KEY (`attachment_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='stores email attachments\n';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.email_attachment: ~0 rows (approximately)
+/*!40000 ALTER TABLE `email_attachment` DISABLE KEYS */;
+/*!40000 ALTER TABLE `email_attachment` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.email_detail
 CREATE TABLE IF NOT EXISTS `email_detail` (
   `object_node_id` int(11) NOT NULL,
@@ -572,7 +625,10 @@ CREATE TABLE IF NOT EXISTS `email_detail` (
   CONSTRAINT `fk_email_object_node_id` FOREIGN KEY (`object_node_id`) REFERENCES `object_detail` (`object_node_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='table to hold information for emails.  sender, recipient, etc';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.email_detail: ~0 rows (approximately)
+/*!40000 ALTER TABLE `email_detail` DISABLE KEYS */;
+/*!40000 ALTER TABLE `email_detail` ENABLE KEYS */;
+
 -- Dumping structure for function policydb.formatCSL
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `formatCSL`(
@@ -748,7 +804,7 @@ RETURN node;
 END//
 DELIMITER ;
 
--- Dumping structure for function policydb.GET_NODE_NAME
+-- Dumping structure for function policydb.get_node_name
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_node_name`(node_id_in int(11)) RETURNS varchar(100) CHARSET utf8
 BEGIN
@@ -759,7 +815,7 @@ RETURN node_name;
 END//
 DELIMITER ;
 
--- Dumping structure for function policydb.GET_NODE_TYPE
+-- Dumping structure for function policydb.get_node_type
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `get_node_type`(node_id_in int(11)) RETURNS int(11)
 BEGIN
@@ -894,7 +950,13 @@ CREATE TABLE IF NOT EXISTS `host` (
   KEY `idx_host_host_name` (`host_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='host machine info';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.host: ~2 rows (approximately)
+/*!40000 ALTER TABLE `host` DISABLE KEYS */;
+INSERT INTO `host` (`host_id`, `host_name`, `workarea_path`) VALUES
+	(1, 'Dummy_host', 'dummy'),
+	(100, 'P860658', 'C:\\PMWorkarea');
+/*!40000 ALTER TABLE `host` ENABLE KEYS */;
+
 -- Dumping structure for function policydb.isValidCSL
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` FUNCTION `isValidCSL`(
@@ -1018,7 +1080,10 @@ CREATE TABLE IF NOT EXISTS `keystore` (
   CONSTRAINT `fk_user_node_id` FOREIGN KEY (`user_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='host machine info';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.keystore: ~0 rows (approximately)
+/*!40000 ALTER TABLE `keystore` DISABLE KEYS */;
+/*!40000 ALTER TABLE `keystore` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.node
 CREATE TABLE IF NOT EXISTS `node` (
   `node_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1030,7 +1095,17 @@ CREATE TABLE IF NOT EXISTS `node` (
   CONSTRAINT `fk_node_type_id` FOREIGN KEY (`node_type_id`) REFERENCES `node_type` (`node_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table contains all the nodes in the graph';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.node: ~6 rows (approximately)
+/*!40000 ALTER TABLE `node` DISABLE KEYS */;
+INSERT INTO `node` (`node_id`, `node_type_id`, `name`, `description`) VALUES
+	(1, 1, 'PM', ''),
+	(2, 2, 'admin', ''),
+	(3, 3, 'superAdmin', ''),
+	(4, 4, 'super', ''),
+	(5, 5, 'everything', 'Object mapped to all entities.'),
+	(7, 7, 'all ops', 'Op set containing all operations');
+/*!40000 ALTER TABLE `node` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.node_property
 CREATE TABLE IF NOT EXISTS `node_property` (
   `property_node_id` int(11) NOT NULL DEFAULT '0',
@@ -1040,7 +1115,10 @@ CREATE TABLE IF NOT EXISTS `node_property` (
   CONSTRAINT `fk_property_node_id` FOREIGN KEY (`property_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.node_property: ~0 rows (approximately)
+/*!40000 ALTER TABLE `node_property` DISABLE KEYS */;
+/*!40000 ALTER TABLE `node_property` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.node_type
 CREATE TABLE IF NOT EXISTS `node_type` (
   `node_type_id` int(11) NOT NULL,
@@ -1051,7 +1129,18 @@ CREATE TABLE IF NOT EXISTS `node_type` (
   KEY `idx_node_type_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table contains node types';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.node_type: ~7 rows (approximately)
+/*!40000 ALTER TABLE `node_type` DISABLE KEYS */;
+INSERT INTO `node_type` (`node_type_id`, `name`, `description`) VALUES
+	(1, 'c', 'Connector'),
+	(2, 'p', 'Policy Class'),
+	(3, 'a', 'User Attribute'),
+	(4, 'u', 'User'),
+	(5, 'b', 'Object Attribute'),
+	(6, 'o', 'Object'),
+	(7, 's', 'Operation Set');
+/*!40000 ALTER TABLE `node_type` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.object_class
 CREATE TABLE IF NOT EXISTS `object_class` (
   `object_class_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1061,7 +1150,22 @@ CREATE TABLE IF NOT EXISTS `object_class` (
   KEY `idx_object_class_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Object Class';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.object_class: ~11 rows (approximately)
+/*!40000 ALTER TABLE `object_class` DISABLE KEYS */;
+INSERT INTO `object_class` (`object_class_id`, `name`, `description`) VALUES
+	(1, 'class', 'Class of all object classes'),
+	(2, 'File', 'Class of files'),
+	(3, 'Directory', 'Class of directories'),
+	(4, 'User', 'Class of PM users'),
+	(5, 'User attribute', 'Class of PM user attributes'),
+	(6, 'Object', 'Class of PM objects'),
+	(7, 'Object attribute', 'Class of PM object attributes'),
+	(8, 'Connector', 'Class of the PM connector node'),
+	(9, 'Policy class', 'Class of PM policy classes'),
+	(10, 'Operation set', 'Class of PM operation sets'),
+	(11, '*', 'Class any class');
+/*!40000 ALTER TABLE `object_class` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.object_detail
 CREATE TABLE IF NOT EXISTS `object_detail` (
   `object_node_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1082,7 +1186,12 @@ CREATE TABLE IF NOT EXISTS `object_detail` (
   CONSTRAINT `fk_original_node_id` FOREIGN KEY (`original_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Object Details';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.object_detail: ~290 rows (approximately)
+/*!40000 ALTER TABLE `object_detail` DISABLE KEYS */;
+INSERT INTO `object_detail` (`object_node_id`, `original_node_id`, `object_class_id`, `host_id`, `path`, `include_ascedants`, `template_id`) VALUES
+	(5, 1, 8, 100, NULL, 1, NULL);
+/*!40000 ALTER TABLE `object_detail` ENABLE KEYS */;
+
 -- Dumping structure for view policydb.object_view
 -- Creating temporary table to overcome VIEW dependency errors
 CREATE TABLE `object_view` (
@@ -1104,7 +1213,10 @@ CREATE TABLE IF NOT EXISTS `ob_action` (
   CONSTRAINT `fk_ob_action_rule_id` FOREIGN KEY (`rule_id`) REFERENCES `ob_rule` (`rule_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_action: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_action` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_action` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_action_type
 CREATE TABLE IF NOT EXISTS `ob_action_type` (
   `action_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1112,7 +1224,19 @@ CREATE TABLE IF NOT EXISTS `ob_action_type` (
   PRIMARY KEY (`action_type_id`,`action_type_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_action_type: ~8 rows (approximately)
+/*!40000 ALTER TABLE `ob_action_type` DISABLE KEYS */;
+INSERT INTO `ob_action_type` (`action_type_id`, `action_type_name`) VALUES
+	(1, 'assign'),
+	(2, 'assign like'),
+	(3, 'grant'),
+	(4, 'create'),
+	(5, 'deny'),
+	(6, 'delete assignment'),
+	(7, 'delete deny'),
+	(8, 'delete rule');
+/*!40000 ALTER TABLE `ob_action_type` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_condition
 CREATE TABLE IF NOT EXISTS `ob_condition` (
   `condition_id` varchar(50) NOT NULL,
@@ -1124,7 +1248,10 @@ CREATE TABLE IF NOT EXISTS `ob_condition` (
   CONSTRAINT `fk_cond_action_id` FOREIGN KEY (`action_id`) REFERENCES `ob_action` (`action_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_condition: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_condition` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_condition` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_condition_type
 CREATE TABLE IF NOT EXISTS `ob_condition_type` (
   `cond_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1132,7 +1259,16 @@ CREATE TABLE IF NOT EXISTS `ob_condition_type` (
   PRIMARY KEY (`cond_type_id`,`cond_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_condition_type: ~5 rows (approximately)
+/*!40000 ALTER TABLE `ob_condition_type` DISABLE KEYS */;
+INSERT INTO `ob_condition_type` (`cond_type_id`, `cond_type`) VALUES
+	(1, 'user'),
+	(2, 'user attribute'),
+	(3, 'object'),
+	(4, 'object attribute'),
+	(5, 'policy');
+/*!40000 ALTER TABLE `ob_condition_type` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_cont_spec
 CREATE TABLE IF NOT EXISTS `ob_cont_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1144,7 +1280,10 @@ CREATE TABLE IF NOT EXISTS `ob_cont_spec` (
   CONSTRAINT `fk_cont_spec_type_id` FOREIGN KEY (`cont_spec_type`) REFERENCES `node_type` (`node_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_cont_spec: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_cont_spec` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_cont_spec` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_cont_spec_type
 CREATE TABLE IF NOT EXISTS `ob_cont_spec_type` (
   `cont_spec_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1152,7 +1291,14 @@ CREATE TABLE IF NOT EXISTS `ob_cont_spec_type` (
   PRIMARY KEY (`cont_spec_type_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_cont_spec_type: ~3 rows (approximately)
+/*!40000 ALTER TABLE `ob_cont_spec_type` DISABLE KEYS */;
+INSERT INTO `ob_cont_spec_type` (`cont_spec_type_id`, `cont_spec_type`) VALUES
+	(1, 'b'),
+	(2, 'rec'),
+	(3, 'oc');
+/*!40000 ALTER TABLE `ob_cont_spec_type` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_event_pattern
 CREATE TABLE IF NOT EXISTS `ob_event_pattern` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1164,7 +1310,10 @@ CREATE TABLE IF NOT EXISTS `ob_event_pattern` (
   CONSTRAINT `fk_evtptrn_rule_id` FOREIGN KEY (`rule_id`) REFERENCES `ob_rule` (`rule_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_event_pattern: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_event_pattern` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_event_pattern` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_obj_spec
 CREATE TABLE IF NOT EXISTS `ob_obj_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1176,7 +1325,10 @@ CREATE TABLE IF NOT EXISTS `ob_obj_spec` (
   CONSTRAINT `fk_obj_spec_type` FOREIGN KEY (`obj_spec_type`) REFERENCES `node_type` (`node_type_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_obj_spec: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_obj_spec` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_obj_spec` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_operand
 CREATE TABLE IF NOT EXISTS `ob_operand` (
   `operand_id` varchar(50) NOT NULL,
@@ -1199,7 +1351,10 @@ CREATE TABLE IF NOT EXISTS `ob_operand` (
   CONSTRAINT `fk_operand_type` FOREIGN KEY (`operand_type`) REFERENCES `ob_operand_type` (`operand_type_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_operand: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_operand` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_operand` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_operand_args
 CREATE TABLE IF NOT EXISTS `ob_operand_args` (
   `operand_id` varchar(50) NOT NULL,
@@ -1211,7 +1366,10 @@ CREATE TABLE IF NOT EXISTS `ob_operand_args` (
   CONSTRAINT `fk_operand_id` FOREIGN KEY (`arg_operand_id`) REFERENCES `ob_operand` (`operand_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_operand_args: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_operand_args` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_operand_args` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_operand_type
 CREATE TABLE IF NOT EXISTS `ob_operand_type` (
   `operand_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1219,7 +1377,17 @@ CREATE TABLE IF NOT EXISTS `ob_operand_type` (
   PRIMARY KEY (`operand_type_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_operand_type: ~6 rows (approximately)
+/*!40000 ALTER TABLE `ob_operand_type` DISABLE KEYS */;
+INSERT INTO `ob_operand_type` (`operand_type_id`, `operand_type`) VALUES
+	(1, 'u'),
+	(2, 'p'),
+	(3, 'op'),
+	(4, 'b'),
+	(5, 'rule'),
+	(6, 'k');
+/*!40000 ALTER TABLE `ob_operand_type` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_op_spec
 CREATE TABLE IF NOT EXISTS `ob_op_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1230,7 +1398,10 @@ CREATE TABLE IF NOT EXISTS `ob_op_spec` (
   CONSTRAINT `fk_op_spec_evtptn_id` FOREIGN KEY (`event_pattern_id`) REFERENCES `ob_event_pattern` (`event_pattern_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_op_spec: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_op_spec` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_op_spec` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_op_spec_events
 CREATE TABLE IF NOT EXISTS `ob_op_spec_events` (
   `event_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1238,7 +1409,15 @@ CREATE TABLE IF NOT EXISTS `ob_op_spec_events` (
   PRIMARY KEY (`event_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_op_spec_events: ~4 rows (approximately)
+/*!40000 ALTER TABLE `ob_op_spec_events` DISABLE KEYS */;
+INSERT INTO `ob_op_spec_events` (`event_id`, `event_name`) VALUES
+	(1, 'Object write'),
+	(2, 'Object create'),
+	(3, 'Object read'),
+	(4, 'User create');
+/*!40000 ALTER TABLE `ob_op_spec_events` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_policy_spec
 CREATE TABLE IF NOT EXISTS `ob_policy_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1249,7 +1428,10 @@ CREATE TABLE IF NOT EXISTS `ob_policy_spec` (
   CONSTRAINT `fk_policy_spec_evtptn_id` FOREIGN KEY (`event_pattern_id`) REFERENCES `ob_event_pattern` (`event_pattern_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_policy_spec: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_policy_spec` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_policy_spec` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_rule
 CREATE TABLE IF NOT EXISTS `ob_rule` (
   `rule_id` varchar(50) NOT NULL,
@@ -1262,7 +1444,10 @@ CREATE TABLE IF NOT EXISTS `ob_rule` (
   CONSTRAINT `fk_ob_rule_script_id` FOREIGN KEY (`script_id`) REFERENCES `ob_script` (`script_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_rule: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_rule` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_rule` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_script
 CREATE TABLE IF NOT EXISTS `ob_script` (
   `script_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1272,17 +1457,23 @@ CREATE TABLE IF NOT EXISTS `ob_script` (
   PRIMARY KEY (`script_id`,`script_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_script: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_script` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_script` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_script_source
 CREATE TABLE IF NOT EXISTS `ob_script_source` (
   `script_id` int(11) NOT NULL,
   `source` varchar(300) DEFAULT NULL,
-  `order` int(4) NOT NULL,
+  `order` int(4) DEFAULT NULL,
   KEY `fk_script_source_id_idx` (`script_id`),
   CONSTRAINT `fk_script_source_id` FOREIGN KEY (`script_id`) REFERENCES `ob_script` (`script_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_script_source: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_script_source` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_script_source` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_user_spec
 CREATE TABLE IF NOT EXISTS `ob_user_spec` (
   `event_pattern_id` varchar(50) NOT NULL,
@@ -1294,7 +1485,10 @@ CREATE TABLE IF NOT EXISTS `ob_user_spec` (
   CONSTRAINT `fk_user_spec_type` FOREIGN KEY (`user_spec_type`) REFERENCES `ob_user_spec_type` (`user_spec_type_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_user_spec: ~0 rows (approximately)
+/*!40000 ALTER TABLE `ob_user_spec` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ob_user_spec` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.ob_user_spec_type
 CREATE TABLE IF NOT EXISTS `ob_user_spec_type` (
   `user_spec_type_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1302,7 +1496,15 @@ CREATE TABLE IF NOT EXISTS `ob_user_spec_type` (
   PRIMARY KEY (`user_spec_type_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.ob_user_spec_type: ~4 rows (approximately)
+/*!40000 ALTER TABLE `ob_user_spec_type` DISABLE KEYS */;
+INSERT INTO `ob_user_spec_type` (`user_spec_type_id`, `user_spec_type`) VALUES
+	(1, 'u'),
+	(2, 'a'),
+	(3, 'ses'),
+	(4, 'proc');
+/*!40000 ALTER TABLE `ob_user_spec_type` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.open_object
 CREATE TABLE IF NOT EXISTS `open_object` (
   `session_id` int(11) NOT NULL,
@@ -1314,7 +1516,10 @@ CREATE TABLE IF NOT EXISTS `open_object` (
   CONSTRAINT `fk_session_id_oo` FOREIGN KEY (`session_id`) REFERENCES `session` (`session_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='table for open objects';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.open_object: ~0 rows (approximately)
+/*!40000 ALTER TABLE `open_object` DISABLE KEYS */;
+/*!40000 ALTER TABLE `open_object` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.operation
 CREATE TABLE IF NOT EXISTS `operation` (
   `operation_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -1331,7 +1536,76 @@ CREATE TABLE IF NOT EXISTS `operation` (
   CONSTRAINT `fk_operation_type_id` FOREIGN KEY (`operation_type_id`) REFERENCES `operation_type` (`operation_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Operation';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.operation: ~65 rows (approximately)
+/*!40000 ALTER TABLE `operation` DISABLE KEYS */;
+INSERT INTO `operation` (`operation_id`, `operation_type_id`, `name`, `description`, `object_class_id`) VALUES
+	(1, 1, 'Class create class', 'Class create class', 1),
+	(2, 1, 'Class delete class', 'Class delete class', 2),
+	(3, 1, '*', '*', 11),
+	(4, 1, 'File modify', 'File modify', 2),
+	(5, 1, 'File read and execute', 'File read and execute', 2),
+	(6, 1, 'File read', 'File read', 2),
+	(7, 1, 'File write', 'File write', 2),
+	(8, 1, 'Dir modify', 'Dir modify', 3),
+	(9, 1, 'Dir read and execute', 'Dir read and execute', 3),
+	(10, 1, 'Dir list contents', 'Dir list contents', 3),
+	(11, 1, 'Dir read', 'Dir read', 3),
+	(12, 1, 'Dir write', 'Dir write', 3),
+	(13, 1, 'User create user attribute', 'User create user attribute', 4),
+	(14, 1, 'User assign', 'User assign', 4),
+	(15, 1, 'User delete', 'User delete', 4),
+	(16, 1, 'User delete assign', 'User delete assign', 4),
+	(17, 1, 'Entity represent', 'Entity represent', 4),
+	(18, 1, 'User attribute create user attribute', 'User attribute create user attribute', 5),
+	(19, 1, 'User attribute create user', 'User attribute create user', 5),
+	(20, 1, 'User attribute delete user', 'User attribute delete user', 5),
+	(21, 1, 'User attribute create operation set', 'User attribute create operation set', 5),
+	(22, 1, 'User attribute assign to operation set', 'User attribute assign to operation set', 5),
+	(23, 1, 'User attribute assign', 'User attribute assign', 5),
+	(24, 1, 'User attribute assign to', 'User attribute assign to', 5),
+	(25, 1, 'User attribute delete', 'User attribute delete', 5),
+	(26, 1, 'User attribute delete assign', 'User attribute delete assign', 5),
+	(27, 1, 'User attribute delete assign to', 'User attribute delete assign to', 5),
+	(28, 1, 'Object delete', 'Object delete', 6),
+	(29, 1, 'Object attribute create object', 'Object attribute create object', 7),
+	(30, 1, 'Object attribute delete object', 'Object attribute delete object', 7),
+	(31, 1, 'Object attribute create object attribute', 'Object attribute create object attribute', 7),
+	(32, 1, 'Object attribute delete object attribute', 'Object attribute delete object attribute', 7),
+	(33, 1, 'Object attribute create operation set', 'Object attribute create operation set', 7),
+	(34, 1, 'Object attribute assign', 'Object attribute assign', 7),
+	(35, 1, 'Object attribute assign to', 'Object attribute assign to', 7),
+	(36, 1, 'Object attribute delete', 'Object attribute delete', 7),
+	(37, 1, 'Object attribute delete assign', 'Object attribute delete assign', 7),
+	(38, 1, 'Object attribute delete assign to', 'Object attribute delete assign to', 7),
+	(39, 1, 'Policy class create user attribute', 'Policy class create user attribute', 9),
+	(40, 1, 'Policy class delete user attribute', 'Policy class delete user attribute', 9),
+	(41, 1, 'Policy class create object attribute', 'Policy class create object attribute', 9),
+	(42, 1, 'Policy class delete object attribute', 'Policy class delete object attribute', 9),
+	(43, 1, 'Policy class create object', 'Policy class create object', 9),
+	(44, 1, 'Policy class assign', 'Policy class assign', 9),
+	(45, 1, 'Policy class assign to', 'Policy class assign to', 9),
+	(46, 1, 'Policy class delete', 'Policy class delete', 9),
+	(47, 1, 'Policy class delete assign', 'Policy class delete assign', 9),
+	(48, 1, 'Policy class delete assign to', 'Policy class delete assign to', 9),
+	(49, 1, 'Operation set assign', 'Operation set assign', 10),
+	(50, 1, 'Operation set assign to', 'Operation set assign to', 10),
+	(51, 1, 'Operation set delete', 'Operation set delete', 10),
+	(52, 1, 'Operation set delete assign', 'Operation set delete assign', 10),
+	(53, 1, 'Operation set delete assign to', 'Operation set delete assign to', 10),
+	(54, 1, 'Connector create policy class', 'Connector create policy class', 8),
+	(55, 1, 'Connector delete policy class', 'Connector delete policy class', 8),
+	(56, 1, 'Connector create user', 'Connector create user', 8),
+	(57, 1, 'Connector delete user', 'Connector delete user', 8),
+	(58, 1, 'Connector create user attribute', 'Connector create user attribute', 8),
+	(59, 1, 'Connector delete user attribute', 'Connector delete user attribute', 8),
+	(60, 1, 'Connector create object attribute', 'Connector create object attribute', 8),
+	(61, 1, 'Connector delete object attribute', 'Connector delete object attribute', 8),
+	(62, 1, 'Connector create object', 'Connector create object', 8),
+	(63, 1, 'Connector create operation set', 'Connector create operation set', 8),
+	(64, 1, 'Connector assign to', 'Connector assign to', 8),
+	(65, 1, 'Connector delete assign to', 'Connector delete assign to', 8);
+/*!40000 ALTER TABLE `operation` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.operation_set_details
 CREATE TABLE IF NOT EXISTS `operation_set_details` (
   `operation_set_details_node_id` int(11) NOT NULL,
@@ -1342,7 +1616,12 @@ CREATE TABLE IF NOT EXISTS `operation_set_details` (
   CONSTRAINT `fk_operation_set_details_node_id` FOREIGN KEY (`operation_set_details_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table contains the information for User operation node';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.operation_set_details: ~1 rows (approximately)
+/*!40000 ALTER TABLE `operation_set_details` DISABLE KEYS */;
+INSERT INTO `operation_set_details` (`operation_set_details_node_id`, `operation_id`) VALUES
+	(7, 3);
+/*!40000 ALTER TABLE `operation_set_details` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.operation_type
 CREATE TABLE IF NOT EXISTS `operation_type` (
   `operation_type_id` int(11) NOT NULL,
@@ -1350,7 +1629,13 @@ CREATE TABLE IF NOT EXISTS `operation_type` (
   PRIMARY KEY (`operation_type_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Operation types';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.operation_type: ~2 rows (approximately)
+/*!40000 ALTER TABLE `operation_type` DISABLE KEYS */;
+INSERT INTO `operation_type` (`operation_type_id`, `name`) VALUES
+	(1, 'Resource Operations'),
+	(2, 'Admin Operations');
+/*!40000 ALTER TABLE `operation_type` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.record_components
 CREATE TABLE IF NOT EXISTS `record_components` (
   `record_node_id` int(11) NOT NULL,
@@ -1362,7 +1647,10 @@ CREATE TABLE IF NOT EXISTS `record_components` (
   CONSTRAINT `fk_record_node_id` FOREIGN KEY (`record_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='table to store the components of a record';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.record_components: ~0 rows (approximately)
+/*!40000 ALTER TABLE `record_components` DISABLE KEYS */;
+/*!40000 ALTER TABLE `record_components` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.record_key
 CREATE TABLE IF NOT EXISTS `record_key` (
   `record_node_id` int(11) NOT NULL,
@@ -1372,7 +1660,10 @@ CREATE TABLE IF NOT EXISTS `record_key` (
   CONSTRAINT `object_key_node_id` FOREIGN KEY (`record_node_id`) REFERENCES `object_detail` (`object_node_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.record_key: ~0 rows (approximately)
+/*!40000 ALTER TABLE `record_key` DISABLE KEYS */;
+/*!40000 ALTER TABLE `record_key` ENABLE KEYS */;
+
 -- Dumping structure for procedure policydb.reset_data
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `reset_data`(session_id_in INT(11))
@@ -1439,7 +1730,12 @@ CREATE TABLE IF NOT EXISTS `session` (
   CONSTRAINT `fk_session_user_node_id` FOREIGN KEY (`user_node_id`) REFERENCES `node` (`node_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='This table stores sessions created for users. This will be temperory data and rows will be deleted from this table depending on retention policy. ';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.session: ~1 rows (approximately)
+/*!40000 ALTER TABLE `session` DISABLE KEYS */;
+INSERT INTO `session` (`session_id`, `session_name`, `user_node_id`, `start_time`, `host_id`) VALUES
+	(189, 'super@P860658-6', 4, '2019-03-20 13:26:57', 100);
+/*!40000 ALTER TABLE `session` ENABLE KEYS */;
+
 -- Dumping structure for procedure policydb.set_property
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `set_property`(property_in varchar(200), property_value_in varchar(200), node_id int)
@@ -1462,7 +1758,10 @@ CREATE TABLE IF NOT EXISTS `template` (
   PRIMARY KEY (`template_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.template: ~2 rows (approximately)
+/*!40000 ALTER TABLE `template` DISABLE KEYS */;
+/*!40000 ALTER TABLE `template` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.template_component
 CREATE TABLE IF NOT EXISTS `template_component` (
   `template_id` int(11) NOT NULL,
@@ -1474,7 +1773,10 @@ CREATE TABLE IF NOT EXISTS `template_component` (
   CONSTRAINT `fk_template_id` FOREIGN KEY (`template_id`) REFERENCES `template` (`template_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.template_component: ~0 rows (approximately)
+/*!40000 ALTER TABLE `template_component` DISABLE KEYS */;
+/*!40000 ALTER TABLE `template_component` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.template_key
 CREATE TABLE IF NOT EXISTS `template_key` (
   `template_id` int(11) NOT NULL,
@@ -1484,7 +1786,10 @@ CREATE TABLE IF NOT EXISTS `template_key` (
   CONSTRAINT `fk_tpl_id` FOREIGN KEY (`template_id`) REFERENCES `template` (`template_id`) ON DELETE CASCADE ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.template_key: ~0 rows (approximately)
+/*!40000 ALTER TABLE `template_key` DISABLE KEYS */;
+/*!40000 ALTER TABLE `template_key` ENABLE KEYS */;
+
 -- Dumping structure for table policydb.user_detail
 CREATE TABLE IF NOT EXISTS `user_detail` (
   `user_node_id` int(11) NOT NULL,
@@ -1503,7 +1808,12 @@ CREATE TABLE IF NOT EXISTS `user_detail` (
   CONSTRAINT `fk_user_host_id` FOREIGN KEY (`host_id`) REFERENCES `host` (`host_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='user - U';
 
--- Data exporting was unselected.
+-- Dumping data for table policydb.user_detail: ~1 rows (approximately)
+/*!40000 ALTER TABLE `user_detail` DISABLE KEYS */;
+INSERT INTO `user_detail` (`user_node_id`, `user_name`, `full_name`, `password`, `email_address`, `host_id`, `pop_server`, `smtp_server`, `account_name`) VALUES
+	(4, 'super', 'SuperFirst', '100fd8433286961fcfa4cee541667c90dd6eaf22632fe284e4fded3f340c9d9b2245bb6224eec853f513c11a68ccaf74900a42f11277d6c3145d58daf1b99ce1cdd1b5882fd1d7f1e453f6923e6a95ca5d3', NULL, NULL, NULL, NULL, NULL);
+/*!40000 ALTER TABLE `user_detail` ENABLE KEYS */;
+
 -- Dumping structure for view policydb.acl_entry_view
 -- Removing temporary table and create final VIEW structure
 DROP TABLE IF EXISTS `acl_entry_view`;
